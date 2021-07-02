@@ -1,17 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.models as models
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import numpy as np
-import copy
 from collections import OrderedDict
 import ipdb
-
-from loader import Loader
+from utils import get_geo_dist
 
 
 class EncoderImage(nn.Module):
@@ -162,7 +155,6 @@ class XRN(object):
         # Loss and Optimizer
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.params, lr=opt.lr)
-        self.Eiters = 0
         self.weight_init()
 
     def weight_init(self):
@@ -209,83 +201,74 @@ class XRN(object):
 
     def train_emb(
         self,
-        viz_elem,
-        info_elem,
         text,
         seq_length,
         node_feats,
-        node_names,
         anchor,
         *args,
     ):
-        # One training step given images and captions.
-        self.Eiters += 1
+
         self.optimizer.zero_grad()
         node_feats = node_feats.view(node_feats.size()[0] * 2, 36, 2048)
-
         text = torch.repeat_interleave(text, repeats=2, dim=0)
         seq_length = torch.repeat_interleave(seq_length, repeats=2, dim=0)
         predict = self.forward_emb(node_feats, text, seq_length).squeeze(1)
-        # measure and record loss
         loss = self.forward_loss(anchor, predict)
-        # compute gradient and do SGD step
         loss.backward()
         self.optimizer.step()
+
         # measure acc
-        correct_all = (
-            torch.eq(
-                anchor.float().flatten(), np.round(predict.detach().cpu()).flatten()
-            ).sum()
-            * 1.0
-            / anchor.float().flatten().size()[0]
-        )
-        predict = predict.view(-1, 2, 1).detach().cpu()
-        top_pred = predict.squeeze(2).argmax(dim=1)
+        top_pred = predict.view(-1, 2, 1).detach().cpu().squeeze(2).argmax(dim=1)
         top_true = anchor.argmax(dim=1)
-        correct_top = torch.eq(top_pred, top_true).sum() * 1.0 / top_pred.size()[0]
-        return loss, correct_all, correct_top
+        accuracy = torch.eq(top_pred, top_true).sum() * 1.0 / top_pred.size()[0]
+
+        return loss, accuracy
 
     def eval_emb(
         self,
-        viz_elem,
-        info_elem,
         text,
         seq_length,
         node_feats,
-        node_names,
         anchor,
+        node_names,
+        info_elem,
         *args,
     ):
-        batch_size = len(info_elem[0])
-        node_names = np.asarray(node_names)
+        batch_size = node_feats.size()[0]
+
         node_feats = node_feats.view(batch_size * self.opt.max_nodes, 36, 2048)
         text = torch.repeat_interleave(text, repeats=self.opt.max_nodes, dim=0)
         seq_length = torch.repeat_interleave(
             seq_length, repeats=self.opt.max_nodes, dim=0
         )
-        predict = self.forward_emb(node_feats, text, seq_length)
 
-        predict = predict.view(-1, self.opt.max_nodes, 1).detach().cpu()
-        top_pred = predict.squeeze(2).argmax(dim=1)
+        predict = (
+            self.forward_emb(node_feats, text, seq_length)
+            .view(-1, self.opt.max_nodes, 1)
+            .detach()
+            .cpu()
+        ).squeeze(2)
+
         top_true = anchor.argmax(dim=1)
-        correct_top = torch.eq(top_pred, top_true).sum() * 1.0 / batch_size
-
-        top_k_viewpoints = []
+        node_names = np.transpose(np.asarray(node_names))
+        k = 5
+        top_true = anchor.argmax(dim=1)
+        k1_correct = 0.0
+        topk_correct = 0.0
+        LE = []
         for i in range(batch_size):
-            non_null = np.where(node_names[:, i] != "null")[0]
-            top = torch.tensor(np.asarray(predict[i, :, :][non_null])).argmax()
-            top_k_viewpoints.append(node_names[top, i])
+            non_null = np.where(node_names[i, :] != "null")[0]
+            topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
+            k1_correct += torch.eq(topk1, top_true[i])
+            topk5 = torch.topk(predict[i, :][non_null], k)[1]
+            topk_correct += top_true[i] in topk5
 
-        # correct_names = (
-        #     np.sum(np.asarray(top_k_viewpoints) == np.asarray(info_elem[-1]))
-        #     * 1.0
-        #     / batch_size
-        # )
-        # try:
-        #     assert round(correct_names, 2) == round(
-        #         correct_top.item(), 2
-        #     ), "correct names should equal correct indices"
-        # except:
-        #     ipdb.set_trace()
+            graph = self.opt.scan_graphs[info_elem[2][i]]
+            pred_vp = node_names[i, :][topk1]
+            true_vp = node_names[i, :][top_true[i]]
+            LE.append(get_geo_dist(graph, pred_vp, true_vp))
 
-        return top_k_viewpoints, correct_top
+        accuracy_k1 = k1_correct * 1.0 / batch_size
+        accuracy_topk = topk_correct * 1.0 / batch_size
+
+        return accuracy_k1, accuracy_topk, LE

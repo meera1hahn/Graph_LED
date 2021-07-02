@@ -72,51 +72,45 @@ class LEDAgent:
                 shuffle=False,
             )
 
-    # def validate(self, data_iterator, mode):
-    #     print("Mode-", mode)
-    #     self.model.val_start()
-    #     distances = []
-    #     correct = []
-    #     for batch_data in tqdm.tqdm(data_iterator):
-    #         preds, c = self.model.eval_emb(*batch_data)
-    #         _, info_elem, _, _, _, _, _ = batch_data
-    #         if mode != "test":
-    #             distances.extend(
-    #                 geo_dist_singlefloor(self.args.scan_graphs, preds, info_elem)
-    #             )
-    #             correct.append(c)
-    #     if mode != "test":
-    #         print(f"\t{0}m-Acc: {np.mean(correct)}")
-    #         print(
-    #             f"\t{0}m-Acc: {round(accuracy(distances, 0), 3)}, {3}m-Acc: {round(accuracy(distances, 3), 3)}, {5}m-Acc: {round(accuracy(distances, 5), 3)}, LE: {round(np.mean(distances), 3)}"
-    #         )
+    def evaluate(self, data_iterator, mode):
+        print("Mode-", mode)
+        self.model.val_start()
+        acc_k1, acc_topk, le = [], [], []
+        for batch_data in tqdm.tqdm(data_iterator):
+            k1, topk, e = self.model.eval_emb(*batch_data)
+            acc_k1.append(k1)
+            acc_topk.append(topk)
+            le.extend(e)
+        print(f"\t{mode} Acc@1k: {np.mean(acc_k1)} Acc@5k: {np.mean(acc_topk)}")
+        le = np.asarray(le)
+        acc0m = sum(le <= 0) * 1.0 / len(le)
+        acc5m = sum(le <= 5) * 1.0 / len(le)
+        acc10m = sum(le <= 10) * 1.0 / len(le)
+        print(
+            f"\t{mode} LE: {np.mean(le)}, Acc@0m: {acc0m}, Acc@5m: {acc5m}, Acc@10m: {acc10m}"
+        )
 
-    def run_train(self):
+    def train(self):
         print("\nStarting Training...")
         self.model = XRN(self.args)
         for _ in range(self.args.num_epoch):
             self.model.train_start()
             loss = []
-            correct_all = []
-            correct_top = []
+            accuracy = []
             print("Mode-", "train")
             for batch_data in tqdm.tqdm(self.train_iterator):
-                l, ca, ct = self.model.train_emb(*batch_data)
+                l, a = self.model.train_emb(*batch_data)
                 loss.append(l.item())
-                correct_all.append(ca)
-                correct_top.append(ct)
+                accuracy.append(a)
             print(f"\tTraining Loss: {np.mean(loss)}")
-            print(
-                f"\tTraining acc_all: {np.mean(correct_all)}; acc_top: {np.mean(correct_top)}"
-            )
-            # self.validate(self.train_iterator, mode="train")
-            # self.validate(self.valseen_iterator, mode="valSeen")
-            # self.validate(self.val_unseen_iterator, mode="valUnseen")
+            print(f"\tTraining triplet-accuracy: {np.mean(accuracy)}")
+            self.evaluate(self.valseen_iterator, mode="ValSeen")
+            self.evaluate(self.val_unseen_iterator, mode="ValUnseen")
 
     def run(self):
         if self.args.train:
             self.load_data()
-            self.run_train()
+            self.train()
 
         # elif self.args.evaluate:
         #     self.load_data()

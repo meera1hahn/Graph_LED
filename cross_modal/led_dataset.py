@@ -87,7 +87,7 @@ class LEDDataset(Dataset):
         node_names = []
         i = 0
         anchor_index = 0
-        for node in sorted(self.scan_graphs[scan_id].nodes()):
+        for node in sorted(self.args.scan_graphs[scan_id].nodes()):
             node_names.append(node)
             key = scan_id + "-" + node
             node_feats[i, :, :] = torch.tensor(self.pano_feats[key.encode()])
@@ -96,7 +96,6 @@ class LEDDataset(Dataset):
             i += 1
         for _ in range(i, self.args.max_nodes):
             node_names.append("null")
-        # print(anchor_index)
         return node_feats, node_names, anchor_index
 
     def __getitem__(self, index):
@@ -112,7 +111,15 @@ class LEDDataset(Dataset):
             anchor = torch.zeros(self.args.max_nodes)
             anchor[anchor_index] = 1
 
-        return (viz_elem, info_elem, text, seq_length, node_feats, node_names, anchor)
+        return (
+            text,
+            seq_length,
+            node_feats,
+            anchor,
+            node_names,
+            info_elem,
+            viz_elem,
+        )
 
     def __len__(self):
         return len(self.texts)
