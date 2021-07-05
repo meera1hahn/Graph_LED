@@ -104,7 +104,7 @@ parser.add_argument("--lr", type=float, default=0.001, help="initial learning ra
 parser.add_argument("--grad_clip", type=float, default=0.5, help="gradient clipping")
 parser.add_argument("--num_epoch", type=int, default=40, help="upper epoch limit")
 parser.add_argument("--seed", type=int, default=42, help="random seed")
-parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--batch_size", type=int, default=6)
 parser.add_argument("--early_stopping", type=int, default=10)
 parser.add_argument("--data_aug", default=False, action="store_true")
 parser.add_argument("--increase_train", default=False, action="store_true")

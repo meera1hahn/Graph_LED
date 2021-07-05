@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import numpy as np
 from collections import OrderedDict
 import ipdb
 from utils import get_geo_dist
+import json
 
 
 class EncoderImage(nn.Module):
@@ -38,13 +40,15 @@ class EncoderImage(nn.Module):
 
         super(EncoderImage, self).load_state_dict(new_state)
 
-    def forward(self, images, cap_emb):
+    def forward(self, images, cap_emb, batch_size):
         """Extract image feature vectors."""
         # assuming that the precomputed features are already l2-normalized
         features = self.fc(images)
         features = features.flatten(1)
         features = torch.cat((features, cap_emb), -1)
-        predict = self.sig(self.predict(features))
+        predict = self.predict(features)
+        predict = F.log_softmax(predict.view(batch_size, -1), 1)
+        # predict = self.sig(predict)
         return predict
 
 
@@ -66,7 +70,6 @@ class EncoderImageAttend(nn.Module):
     def forward(self, images, cap_emb):
         """Extract image feature vectors."""
         # assuming that the precomputed features are already l2-normalized
-        ipdb.set_trace()
         features = self.fc(images)  # (N,36,512)
         cap_emb = cap_emb.unsqueeze(1).expand(-1, 36, -1)  # (N,36,256)
         features = torch.cat((features, cap_emb), -1)
@@ -74,7 +77,6 @@ class EncoderImageAttend(nn.Module):
         features = self.attend_layers(features)
         features = features.permute(1, 0, 2)
         features = features.mean(1)
-        ipdb.set_trace()
         return features
 
 
@@ -154,8 +156,11 @@ class XRN(object):
 
         # Loss and Optimizer
         self.criterion = nn.BCELoss()
+        self.mrl_criterion = nn.MarginRankingLoss(margin=1)
+        self.kl_criterion = nn.KLDivLoss(reduction="batchmean")
         self.optimizer = torch.optim.Adam(self.params, lr=opt.lr)
         self.weight_init()
+        self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
 
     def weight_init(self):
         if self.opt.evaluate:
@@ -182,21 +187,21 @@ class XRN(object):
         self.img_enc.eval()
         self.txt_enc.eval()
 
-    def forward_emb(self, node_feats, text, seq_length):
+    def forward_emb(self, node_feats, text, seq_length, batch_size):
         """Compute the image and caption embeddings"""
         # Set mini-batch dataset
+
         node_feats = node_feats.to(self.device)
         text = text.to(self.device)
         seq_length = seq_length.to(self.device)
 
         # Forward
         cap_emb = self.txt_enc(text, seq_length)
-        img_emb = self.img_enc(node_feats, cap_emb)
+        img_emb = self.img_enc(node_feats, cap_emb, batch_size)
         return img_emb
 
     def forward_loss(self, anchor, predict):
-        # Compute the loss given pairs of image and caption embeddings
-        loss = self.criterion(predict, anchor.float().flatten().to(self.device))
+        loss = self.kl_criterion(predict, anchor.float().to(self.device))
         return loss
 
     def train_emb(
@@ -205,24 +210,45 @@ class XRN(object):
         seq_length,
         node_feats,
         anchor,
+        node_names,
+        info_elem,
         *args,
     ):
-
         self.optimizer.zero_grad()
-        node_feats = node_feats.view(node_feats.size()[0] * 2, 36, 2048)
-        text = torch.repeat_interleave(text, repeats=2, dim=0)
-        seq_length = torch.repeat_interleave(seq_length, repeats=2, dim=0)
-        predict = self.forward_emb(node_feats, text, seq_length).squeeze(1)
+        batch_size = node_feats.size()[0]
+        neg_examples = node_feats.size()[1]
+        node_feats = node_feats.view(batch_size * neg_examples, 36, 2048)
+        text = torch.repeat_interleave(text, repeats=neg_examples, dim=0)
+        seq_length = torch.repeat_interleave(seq_length, repeats=neg_examples, dim=0)
+        predict = self.forward_emb(node_feats, text, seq_length, batch_size)
         loss = self.forward_loss(anchor, predict)
         loss.backward()
         self.optimizer.step()
 
         # measure acc
-        top_pred = predict.view(-1, 2, 1).detach().cpu().squeeze(2).argmax(dim=1)
+        predict = predict.detach().cpu()
+        anchor = anchor.detach().cpu()
         top_true = anchor.argmax(dim=1)
-        accuracy = torch.eq(top_pred, top_true).sum() * 1.0 / top_pred.size()[0]
+        node_names = np.transpose(np.asarray(node_names))
+        k = 5
+        k1_correct = 0.0
+        topk_correct = 0.0
+        LE = []
+        for i in range(batch_size):
+            non_null = np.where(node_names[i, :] != "null")[0]
+            topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
+            k1_correct += torch.eq(topk1, top_true[i])
+            topk5 = torch.topk(predict[i, :][non_null], k)[1]
+            topk_correct += top_true[i] in topk5
 
-        return loss, accuracy
+            graph = self.opt.scan_graphs[info_elem[2][i]]
+            pred_vp = node_names[i, :][topk1]
+            true_vp = node_names[i, :][top_true[i]]
+            LE.append(get_geo_dist(graph, pred_vp, true_vp))
+
+        accuracy_k1 = k1_correct * 1.0 / batch_size
+        accuracy_topk = topk_correct * 1.0 / batch_size
+        return accuracy_k1, accuracy_topk, LE, loss
 
     def eval_emb(
         self,
@@ -243,16 +269,11 @@ class XRN(object):
         )
 
         predict = (
-            self.forward_emb(node_feats, text, seq_length)
-            .view(-1, self.opt.max_nodes, 1)
-            .detach()
-            .cpu()
-        ).squeeze(2)
-
+            self.forward_emb(node_feats, text, seq_length, batch_size).detach().cpu()
+        )
         top_true = anchor.argmax(dim=1)
         node_names = np.transpose(np.asarray(node_names))
         k = 5
-        top_true = anchor.argmax(dim=1)
         k1_correct = 0.0
         topk_correct = 0.0
         LE = []

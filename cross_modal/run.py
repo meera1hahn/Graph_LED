@@ -55,22 +55,32 @@ class LEDAgent:
         )
         self.valseen_iterator = DataLoader(
             self.loader.datasets["valSeen"],
-            batch_size=2,
+            batch_size=8,
             shuffle=False,
         )
 
         self.val_unseen_iterator = DataLoader(
             self.loader.datasets["valUnseen"],
-            batch_size=2,
+            batch_size=8,
             shuffle=False,
         )
         if self.args.evaluate:
             self.loader.build_dataset(file="test_data.json")
             self.test_iterator = DataLoader(
                 self.loader.datasets["test"],
-                batch_size=2,
+                batch_size=8,
                 shuffle=False,
             )
+
+    def scores(self, mode, acc_k1, acc_topk, le):
+        print(f"\t{mode} Acc@1k: {np.mean(acc_k1)} Acc@5k: {np.mean(acc_topk)}")
+        le = np.asarray(le)
+        acc0m = sum(le <= 0) * 1.0 / len(le)
+        acc5m = sum(le <= 5) * 1.0 / len(le)
+        acc10m = sum(le <= 10) * 1.0 / len(le)
+        print(
+            f"\t{mode} LE: {np.mean(le)}, Acc@0m: {acc0m}, Acc@5m: {acc5m}, Acc@10m: {acc10m}"
+        )
 
     def evaluate(self, data_iterator, mode):
         print("Mode-", mode)
@@ -81,14 +91,7 @@ class LEDAgent:
             acc_k1.append(k1)
             acc_topk.append(topk)
             le.extend(e)
-        print(f"\t{mode} Acc@1k: {np.mean(acc_k1)} Acc@5k: {np.mean(acc_topk)}")
-        le = np.asarray(le)
-        acc0m = sum(le <= 0) * 1.0 / len(le)
-        acc5m = sum(le <= 5) * 1.0 / len(le)
-        acc10m = sum(le <= 10) * 1.0 / len(le)
-        print(
-            f"\t{mode} LE: {np.mean(le)}, Acc@0m: {acc0m}, Acc@5m: {acc5m}, Acc@10m: {acc10m}"
-        )
+        self.scores(mode, acc_k1, acc_topk, le)
 
     def train(self):
         print("\nStarting Training...")
@@ -96,14 +99,16 @@ class LEDAgent:
         for _ in range(self.args.num_epoch):
             self.model.train_start()
             loss = []
-            accuracy = []
+            acc_k1, acc_topk, le = [], [], []
             print("Mode-", "train")
             for batch_data in tqdm.tqdm(self.train_iterator):
-                l, a = self.model.train_emb(*batch_data)
+                k1, topk, e, l = self.model.train_emb(*batch_data)
                 loss.append(l.item())
-                accuracy.append(a)
+                acc_k1.append(k1)
+                acc_topk.append(topk)
+                le.extend(e)
             print(f"\tTraining Loss: {np.mean(loss)}")
-            print(f"\tTraining triplet-accuracy: {np.mean(accuracy)}")
+            self.scores("Training", acc_k1, acc_topk, le)
             self.evaluate(self.valseen_iterator, mode="ValSeen")
             self.evaluate(self.val_unseen_iterator, mode="ValUnseen")
 
@@ -111,10 +116,12 @@ class LEDAgent:
         if self.args.train:
             self.load_data()
             self.train()
+            self.evaluate(self.valseen_iterator, mode="ValSeen")
+            self.evaluate(self.val_unseen_iterator, mode="ValUnseen")
 
-        # elif self.args.evaluate:
-        #     self.load_data()
-        #     self.validate()
+        if self.args.evaluate:
+            self.load_data()
+            self.evaluate(self.test_iterator, mode="Test")
 
 
 if __name__ == "__main__":
