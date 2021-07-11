@@ -13,8 +13,6 @@ from tqdm import tqdm
 
 csv.field_size_limit(sys.maxsize)
 
-_TSV_FIELDNAMES = ["scanId", "viewpointId", "image_w", "image_h", "vfov", "features"]
-
 
 class Loader:
     def __init__(self, data_dir, args):
@@ -22,31 +20,6 @@ class Loader:
         self.datasets = {}
         self.max_length = 0
         self.args = args
-        self.pano_feats, self.keys = self.load_pano_feats(args)
-
-    def _convert_item(self, item):
-        item["image_w"] = int(item["image_w"])  # pixels
-        item["image_h"] = int(item["image_h"])  # pixels
-        item["vfov"] = int(item["vfov"])  # degrees
-        item["features"] = np.frombuffer(
-            base64.b64decode(item["features"]), dtype=np.float32
-        ).reshape(
-            (-1, 2048)
-        )  # 36 x 2048 region features
-        return item
-
-    def load_pano_feats(self, args):
-        keys = []
-        data = {}
-        path = "/srv/flash1/mhahn30/LED/ResNet-152-imagenet.tsv"
-        with open(path, "rt") as fid:
-            reader = csv.DictReader(fid, delimiter="\t", fieldnames=_TSV_FIELDNAMES)
-            for item in tqdm(reader):
-                item = self._convert_item(item)
-                key = item["scanId"] + "-" + item["viewpointId"]
-                keys.append(key.encode())
-                data[key.encode()] = item["features"]
-        return data, keys
 
     def load_info(self, data, mode):
         scan_names = []
@@ -55,7 +28,7 @@ class Loader:
         dialogs = []
         for data_obj in data:
             scan_names.append(data_obj["scanName"])
-            episode_ids.append(data_obj["annotationId"])
+            episode_ids.append(data_obj["episodeId"])
             if "test" in mode:
                 viewpoints.append(data_obj["finalLocation"]["viewPoint"])
             else:
@@ -117,7 +90,6 @@ class Loader:
             scan_names,
             episode_ids,
             viewpoints,
-            self.pano_feats,
             texts,
             seq_lengths,
             dialogs,

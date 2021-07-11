@@ -14,7 +14,7 @@ class LEDDataset(Dataset):
         scan_names,
         episode_ids,
         viewpoints,
-        pano_feats,
+        # pano_feats,
         texts,
         seq_lengths,
         dialogs,
@@ -24,15 +24,19 @@ class LEDDataset(Dataset):
         self.scan_names = scan_names
         self.episode_ids = episode_ids
         self.viewpoints = viewpoints
-        self.pano_feats = pano_feats
+        # self.pano_feats = pano_feats
         self.texts = texts
         self.seq_lengths = seq_lengths
         self.dialogs = dialogs
-        self.min_length = 345
         self.node_levels = None
         ## if visualization
         self.node_levels = json.load(open(args.image_dir + "allScans_Node2pix.json"))
         self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
+        self.feat_dir = "/srv/flash1/mhahn30/LED/node_feats/"
+        # max nodes
+        self.max_nodes = self.args.max_nodes
+        if self.mode == "test" or self.mode == "valUnseen":
+            self.max_nodes = self.args.max_nodes_test
 
     def get_info(self, index):
         viz_elem = None
@@ -60,44 +64,31 @@ class LEDDataset(Dataset):
 
     def get_test_items(self, index):
         scan_id = self.scan_names[index]
-        node_feats = torch.zeros(self.args.max_nodes, 36, 2048)
-        node_names = []
-        i = 0
-        anchor_index = 0
-        for i, node in enumerate(self.args.scan_graphs[scan_id].nodes()):
-            node_names.append(node)
-            key = scan_id + "-" + node
-            node_feats[i, :, :] = torch.tensor(self.pano_feats[key.encode()])
-            if node == self.viewpoints[index]:
-                anchor_index = i
-        for _ in range(len(node_names), self.args.max_nodes):
+        node_feats = torch.load(self.feat_dir + scan_id + ".pt")
+        node_names = sorted([n for n in self.args.scan_graphs[scan_id].nodes()])
+        anchor_index = node_names.index(self.viewpoints[index])
+        for _ in range(len(node_names), self.max_nodes):
             node_names.append("null")
         return node_names, node_feats, anchor_index
 
     def get_contrastive_items(self, index):
         scan_id = self.scan_names[index]
-        # level = self.node_levels[self.scan_names[index]][self.viewpoints[index]][-1]
         vp = self.viewpoints[index]
         dists = self.geodistance_nodes[scan_id][vp]
-
-        target_names = []
-        target_feats = torch.zeros(self.args.max_nodes, 36, 2048)
-        target_probabilites = torch.zeros((self.args.max_nodes))
-
-        for i, node in enumerate(self.args.scan_graphs[scan_id].nodes()):
-            target_names.append(node)
-            key = scan_id + "-" + node
-            target_feats[i, :, :] = torch.tensor(self.pano_feats[key.encode()])
+        target_feats = torch.load(self.feat_dir + scan_id + ".pt")
+        target_names = sorted([n for n in self.args.scan_graphs[scan_id].nodes()])
+        target_probabilites = torch.zeros((self.max_nodes))
+        for i, node in enumerate(target_names):
             if node == vp:
                 target_probabilites[i] = 1.0
             elif dists[node] <= 1.5:
                 target_probabilites[i] = 0.45
             elif dists[node] <= 3.25:
-                target_probabilites[i] = 0.20
+                target_probabilites[i] = 0.0
             else:
                 target_probabilites[i] = 0.0
         target_probabilites = target_probabilites / target_probabilites.sum()
-        for _ in range(len(target_names), self.args.max_nodes):
+        for _ in range(len(target_names), self.max_nodes):
             target_names.append("null")
         return target_names, target_feats, target_probabilites
 
@@ -105,14 +96,13 @@ class LEDDataset(Dataset):
         text = torch.LongTensor(self.texts[index])
         seq_length = np.array(self.seq_lengths[index])
         viz_elem, info_elem = self.get_info(index)
-
         if "train" in self.mode:
             node_names, node_feats, target_probabilites = self.get_contrastive_items(
                 index
             )
         else:
             node_names, node_feats, anchor_index = self.get_test_items(index)
-            target_probabilites = torch.zeros(self.args.max_nodes)
+            target_probabilites = torch.zeros(self.max_nodes)
             target_probabilites[anchor_index] = 1
 
         return (

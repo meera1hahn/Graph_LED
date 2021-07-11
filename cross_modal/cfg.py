@@ -43,9 +43,21 @@ parser.add_argument(
 )
 
 # Output Paths
-parser.add_argument("--summary_dir", type=str, default="/path/to/tensorboard/")
-parser.add_argument("--log_dir", type=str, default="/path/to/logs/")
-parser.add_argument("--visualization_dir", type=str, default="/path/to/visualizations/")
+parser.add_argument(
+    "--summary_dir",
+    type=str,
+    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/tensorboard/",
+)  # /path/to/tensorboard/")
+parser.add_argument(
+    "--log_dir",
+    type=str,
+    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/logs/",
+)  # /path/to/logs/")
+parser.add_argument(
+    "--visualization_dir",
+    type=str,
+    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/visualizations/",
+)  # /path/to/visualizations/")
 parser.add_argument("--save", default=False, action="store_true")
 parser.add_argument(
     "--eval_ckpt",
@@ -62,7 +74,7 @@ parser.add_argument(
 
 # Logging
 parser.add_argument("--print_every", type=int, default=100)
-parser.add_argument("--log", default=False, action="store_true", help="log losses")
+parser.add_argument("--log", default=True, action="store_true", help="log losses")
 parser.add_argument("--summary", default=True, action="store_true", help="tensorboard")
 parser.add_argument("--project_name", type=str, default="led-linguine", help="Comet")
 parser.add_argument("--name", type=str, default="no_name", help="name of the run")
@@ -72,7 +84,8 @@ parser.add_argument("--model", type=str, default="lingunet", help="model used")
 parser.add_argument("--cuda", type=str, default=0, help="which GPU to use")
 parser.add_argument("--freeze_resnet", default=True, action="store_true")
 parser.add_argument("--max_floors", type=int, default=5)
-parser.add_argument("--max_nodes", type=int, default=345)
+parser.add_argument("--max_nodes", type=int, default=340)
+parser.add_argument("--max_nodes_test", type=int, default=230)
 
 # CNN
 parser.add_argument("--pano_embed_size", type=int, default=2048)
@@ -90,17 +103,11 @@ parser.add_argument(
     default="stratch",
     help="Options: stratch, word2vec, glove",
 )
-parser.add_argument("--num_rnn2conv_layers", type=int, default=1)
-
-# Final linear layers
-parser.add_argument("--num_linear_hidden_layers", type=int, default=1)
-parser.add_argument("--linear_hidden_size", type=int, default=128)
 
 # Architecture Specific Arguments
-parser.add_argument("--num_lingunet_layers", type=int, default=3)
 parser.add_argument("--sample_used", type=float, default=1.0)
 parser.add_argument("--loss_type", type=str, default="kl")
-parser.add_argument("--lr", type=float, default=0.001, help="initial learning rate")
+parser.add_argument("--lr", type=float, default=0.0001, help="initial learning rate")
 parser.add_argument("--grad_clip", type=float, default=0.5, help="gradient clipping")
 parser.add_argument("--num_epoch", type=int, default=40, help="upper epoch limit")
 parser.add_argument("--seed", type=int, default=42, help="random seed")
