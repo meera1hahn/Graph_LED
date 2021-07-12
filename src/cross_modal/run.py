@@ -1,3 +1,4 @@
+from math import e
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -13,6 +14,7 @@ import json
 
 from loader import Loader
 from model import XRN
+from attention import AttentionXRN
 
 
 class LEDAgent:
@@ -28,11 +30,15 @@ class LEDAgent:
 
         self.loader = None
         self.writer = None
-        self.out_dir = os.path.join(args.log_dir, args.run_name)
+        self.log_dir = os.path.join(args.log_dir, args.run_name)
+        self.checkpoint_dir = os.path.join(args.checkpoint_dir, args.run_name)
         if (args.log and args.train) or args.save:
-            if not os.path.isdir(self.out_dir):
-                print("Log directory under {}".format(self.out_dir))
-                os.system("mkdir {}".format(self.out_dir))
+            if not os.path.isdir(self.log_dir):
+                print("Log directory under {}".format(self.log_dir))
+                os.system("mkdir {}".format(self.log_dir))
+            if not os.path.isdir(self.checkpoint_dir):
+                print("Checkpoint directory under {}".format(self.checkpoint_dir))
+                os.system("mkdir {}".format(self.checkpoint_dir))
             self.writer = SummaryWriter(args.summary_dir + args.name)
 
         self.model = None
@@ -41,6 +47,9 @@ class LEDAgent:
         self.args.rnn_input_size = len(
             json.load(open(self.args.embedding_dir + "word2idx.json"))
         )
+        self.best_val_acc = -0.1
+        self.patience = 0
+        self.savename = ""
 
     def load_data(self):
         print("Loading Data...")
@@ -107,6 +116,16 @@ class LEDAgent:
             le.extend(e)
         self.scores(mode, acc_k1, acc_topk, le)
         self.tensorboard_writer(mode.lower(), epoch, loss, acc_topk, le)
+        if mode == "ValUnseen" and self.args.model_save:
+            if np.mean(acc_k1) > self.best_val_acc:
+                self.savename = (
+                    f"{self.checkpoint_dir}/Epoch{epoch}_Acc1K-{np.mean(acc_k1)}.pt"
+                )
+                torch.save(self.model.state_dict, self.savename)
+                print(f"saved at {self.savename}")
+                self.best_val_acc = np.mean(acc_k1)
+                self.patience = -1
+            self.patience += 1
 
     def train(self):
         print("\nStarting Training...")
@@ -128,17 +147,22 @@ class LEDAgent:
             self.tensorboard_writer("train", epoch, loss, acc_topk, le)
             self.evaluate(epoch, self.valseen_iterator, mode="ValSeen")
             self.evaluate(epoch, self.val_unseen_iterator, mode="ValUnseen")
+            if self.patience > self.args.early_stopping:
+                print(f"Patience Reached. Ending Training at Epoch {epoch}.")
+                break
 
     def run(self):
         if self.args.train:
             self.load_data()
             self.train()
-            self.evaluate(self.valseen_iterator, mode="ValSeen")
-            self.evaluate(self.val_unseen_iterator, mode="ValUnseen")
+            print("Training Ended...")
+            print("Last Model Saved @", self.savename)
 
-        if self.args.evaluate:
-            self.load_data()
-            self.evaluate(self.test_iterator, mode="Test")
+        # if self.args.evaluate:
+        #     self.model = XRN(self.args)
+        #     self.model.load_state_dict()
+        #     self.load_data()
+        #     self.evaluate(self.test_iterator, mode="Test")
 
 
 if __name__ == "__main__":

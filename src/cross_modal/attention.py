@@ -8,104 +8,45 @@ from utils import get_geo_dist
 import json
 
 
-class FullModel(nn.Module):
+class AttentionModel(nn.Module):
     def __init__(self, opt):
-        super(FullModel, self).__init__()
+        super(AttentionModel, self).__init__()
         # Create Models
         self.txt_encoder = EncoderText(opt)
         self.img_encoder = EncoderImage(opt)
-        # self.img_encoder = EncoderImageAttend(opt)
+        self.predict = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(True),
+            nn.Linear(512, 1),
+        )
 
     def forward(self, node_feats, text, seq_length):
         """Compute the image and caption embeddings"""
         cap_emb = self.txt_encoder(text, seq_length)
         img_emb = self.img_encoder(node_feats, cap_emb)
-        return img_emb
+        joint_emb = torch.mul(img_emb, cap_emb)
+        predict = F.log_softmax(joint_emb, 1)
+        return predict
 
 
 class EncoderImage(nn.Module):
     def __init__(self, opt):
         super(EncoderImage, self).__init__()
-        self.ffc = nn.Sequential(
-            nn.Linear(opt.pano_embed_size, 512),
+        self.img_fc = nn.Sequential(
+            nn.Linear(opt.pano_embed_size, 2048),
             nn.ReLU(True),
             nn.Dropout(0.5),
-            nn.Linear(512, 64),
+            nn.Linear(2048, 1024),
         )
-        self.predict = nn.Sequential(
-            nn.Linear(2304, 1024),
-            nn.ReLU(True),
-            nn.Linear(1024, 512),
-            nn.ReLU(True),
-            nn.Linear(512, 1),
-        )
-        self.sig = nn.Sigmoid()
 
     def forward(self, images, cap_emb):
-        """Extract image feature vectors."""
-        # assuming that the precomputed features are already l2-normalized
-        batch_size, num_nodes = images.size()[0:2]
-        features = self.ffc(images)  # (N,340,36,64)
-        features = features.flatten(2)  # (N,340,2304)
-        cap_emb = cap_emb.unsqueeze(1).expand(
-            batch_size, num_nodes, 2304
-        )  # (N,340,cap_embed_size)
-        features = torch.mul(features, cap_emb)
-        # features = torch.cat((features, cap_emb), -1)
-        predict = self.predict(features)  # (N,340,2560)
-        predict = F.log_softmax(predict, 1)
-        return predict
+        import ipdb
 
-
-# class EncoderImage(nn.Module):
-#     def __init__(self, opt):
-#         super(EncoderImage, self).__init__()
-#         self.ffc = nn.Sequential(
-#             nn.Linear(opt.pano_embed_size, 512),
-#             nn.ReLU(True),
-#         )
-#         self.predict = nn.Sequential(
-#             nn.Linear(512, 1),
-#         )
-#         self.sig = nn.Sigmoid()
-
-#     def forward(self, images, cap_emb):
-#         """Extract image feature vectors."""
-#         # assuming that the precomputed features are already l2-normalized
-#         batch_size = node_feats.size()[0]
-#         features = self.ffc(images)
-#         features = torch.mul((features, cap_emb), -1)
-#         predict = self.predict(features)
-#         predict = F.log_softmax(predict.view(batch_size, -1), 1)
-#         return predict
-
-
-# class EncoderImageAttend(nn.Module):
-#     def __init__(self, opt):
-#         super(EncoderImageAttend, self).__init__()
-#         self.fc = nn.Sequential(
-#             nn.Linear(opt.pano_embed_size, 512),
-#             nn.ReLU(True),
-#         )
-#         self.attend_layers = nn.TransformerEncoder(
-#             nn.TransformerEncoderLayer(d_model=768, nhead=12), num_layers=3
-#         )
-#         self.fc2 = nn.Sequential(
-#             nn.Linear(768, 1),
-#         )
-
-#     def forward(self, images, cap_emb, batch_size):
-#         """Extract image feature vectors."""
-#         # assuming that the precomputed features are already l2-normalized
-#         features = self.fc(images)  # (N,36,512)
-#         cap_emb = cap_emb.unsqueeze(1).expand(-1, 36, -1)  # (N,36,256)
-#         features = torch.mul((features, cap_emb), -1)  # (N,36,768)
-#         features = features.permute(1, 0, 2)
-#         features = self.attend_layers(features)
-#         features = features.permute(1, 0, 2)
-#         features = features.mean(1)
-#         predictions = F.log_softmax(self.fc2(features).view(batch_size, -1), 1)
-#         return predictions
+        ipdb.set_trace()
+        img_emb = self.img_fc(images)  # (N,340,36,64)
+        attention = self.softmax(torch.bmm(cap_emb, img_emb))
+        img_emb = torch.bmm(attention, img_emb)
+        return img_emb
 
 
 class EncoderText(nn.Module):
@@ -128,7 +69,7 @@ class EncoderText(nn.Module):
 
         self.lstm = nn.LSTM(
             self.embed_size,
-            1152,
+            512,
             bidirectional=self.bidirectional,
             batch_first=True,
             dropout=0.0,
@@ -158,7 +99,7 @@ class EncoderText(nn.Module):
         return out
 
 
-class XRN(object):
+class AttentionXRN(object):
     def __init__(self, opt):
         # Cuda
         self.device = (
@@ -168,7 +109,7 @@ class XRN(object):
         )
         # Build Models
         self.opt = opt
-        self.model = FullModel(opt)
+        self.model = AttentionModel(opt)
         if torch.cuda.device_count() > 1:
             print("Using", torch.cuda.device_count(), "GPUs!")
             self.model = nn.DataParallel(self.model)

@@ -58,11 +58,16 @@ parser.add_argument(
     type=str,
     default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/visualizations/",
 )  # /path/to/visualizations/")
-parser.add_argument("--save", default=False, action="store_true")
+parser.add_argument(
+    "--checkpoint_dir",
+    type=str,
+    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/checkpoints/",
+)  # /path/to/checkpoints/")
+parser.add_argument("--model_save", default=True, action="store_true")
 parser.add_argument(
     "--eval_ckpt",
     type=str,
-    default="/path/to/ckpt.pt",
+    default="ckpt.pt",
     help="a checkpoint to evaluate by either testing or generate_predictions",
 )
 parser.add_argument(
@@ -152,5 +157,6 @@ def parse_args():
     args.embedding_dir = args.data_base_dir + args.embedding_dir
     args.connect_dir = args.data_base_dir + args.connect_dir
     args.mesh2meters = args.data_base_dir + args.mesh2meters
+    args.eval_ckpt = args.checkpoint_dir + args.eval_ckpt
     args.scan_graphs = collect_graphs(args)
     return args
