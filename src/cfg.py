@@ -1,10 +1,11 @@
 import argparse
-from utils import open_graph
+from src.utils import open_graph
 
 parser = argparse.ArgumentParser(description="LED task")
 
 # What are you doing
-parser.add_argument("--train", default=True, action="store_true")
+parser.add_argument("--attention", default=False, action="store_true")
+parser.add_argument("--train", default=False, action="store_true")
 parser.add_argument("--evaluate", default=False, action="store_true")
 parser.add_argument("--generate_predictions", default=False, action="store_true")
 parser.add_argument("--eval_predictions", default=False, action="store_true")
@@ -63,7 +64,7 @@ parser.add_argument(
     type=str,
     default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/checkpoints/",
 )  # /path/to/checkpoints/")
-parser.add_argument("--model_save", default=True, action="store_true")
+parser.add_argument("--model_save", default=False, action="store_true")
 parser.add_argument(
     "--eval_ckpt",
     type=str,
@@ -73,7 +74,8 @@ parser.add_argument(
 parser.add_argument(
     "--predictions_dir",
     type=str,
-    default="./path/to/predictions.json",
+    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/predictions/",
+    # default="./path/to/predictions.json",
     help="location of generated predictions to evaluate/visualize",
 )
 
@@ -157,6 +159,6 @@ def parse_args():
     args.embedding_dir = args.data_base_dir + args.embedding_dir
     args.connect_dir = args.data_base_dir + args.connect_dir
     args.mesh2meters = args.data_base_dir + args.mesh2meters
-    args.eval_ckpt = args.checkpoint_dir + args.eval_ckpt
+    args.eval_ckpt = args.checkpoint_dir + "simple_mlp_mul/Epoch6_Acc1K-0.0690.pt"
     args.scan_graphs = collect_graphs(args)
     return args

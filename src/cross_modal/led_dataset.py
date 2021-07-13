@@ -31,7 +31,7 @@ class LEDDataset(Dataset):
         self.node_levels = None
         ## if visualization
         self.node_levels = json.load(open(args.image_dir + "allScans_Node2pix.json"))
-        self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
+        self.geodistance_nodes = json.load(open("../geodistance_nodes.json"))
         self.feat_dir = "/srv/flash1/mhahn30/LED/node_feats/"
         # max nodes
         self.max_nodes = self.args.max_nodes

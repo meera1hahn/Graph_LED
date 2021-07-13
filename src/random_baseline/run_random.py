@@ -1,8 +1,8 @@
 import json
 import random
-import cfg
 import numpy as np
-from utils import get_geo_dist
+from src.utils import get_geo_dist
+from src.cfg import *
 
 
 def random_node_selection(args, split):
@@ -12,10 +12,15 @@ def random_node_selection(args, split):
         nodes = [n for n in args.scan_graphs[episode["scanName"]].nodes()]
         vp = random.choice(nodes)
         submission[episode["episodeId"]] = {"viewpoint": vp}
-    print(args.predictions_dir + split.split("_")[0] + "_submission.json")
+    fileName = (
+        args.predictions_dir
+        + "randomBaseline_"
+        + split.split("_")[0]
+        + "_submission.json"
+    )
     json.dump(
         submission,
-        open(args.predictions_dir + split.split("_")[0] + "_submission.json", "w"),
+        open(fileName, "w"),
         indent=3,
     )
 
@@ -24,7 +29,10 @@ def evaluate(args, split):
     split_name = split.split("_")[0]
     distance_scores = []
     splitData = json.load(open(args.data_dir + split))
-    submission = json.load(open(args.predictions_dir + split_name + "_submission.json"))
+    fileName = (
+        args.predictions_dir + "randomBaseline_" + split_name + "_submission.json"
+    )
+    submission = json.load(open(fileName))
     for gt in splitData:
         gt_graph = args.scan_graphs[gt["scanName"]]
         gt_vp = gt["finalLocation"]["viewPoint"]
@@ -42,7 +50,7 @@ def evaluate(args, split):
 
 
 if __name__ == "__main__":
-    args = cfg.parse_args()
+    args = parse_args()
 
     data_splits = [
         "train_data.json",

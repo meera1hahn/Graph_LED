@@ -1,20 +1,18 @@
-from math import e
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-
 import tqdm
 import numpy as np
 import os.path
 import os
-import cfg
 import json
 
 from loader import Loader
 from model import XRN
 from attention import AttentionXRN
+from src.cfg import *
 
 
 class LEDAgent:
@@ -32,7 +30,7 @@ class LEDAgent:
         self.writer = None
         self.log_dir = os.path.join(args.log_dir, args.run_name)
         self.checkpoint_dir = os.path.join(args.checkpoint_dir, args.run_name)
-        if (args.log and args.train) or args.save:
+        if (args.log and args.train) or args.model_save:
             if not os.path.isdir(self.log_dir):
                 print("Log directory under {}".format(self.log_dir))
                 os.system("mkdir {}".format(self.log_dir))
@@ -61,17 +59,20 @@ class LEDAgent:
             self.loader.datasets["train"],
             batch_size=self.args.batch_size,
             shuffle=True,
+            num_workers=0,
         )
         self.valseen_iterator = DataLoader(
             self.loader.datasets["valSeen"],
             batch_size=self.args.batch_size,
             shuffle=False,
+            num_workers=0,
         )
 
         self.val_unseen_iterator = DataLoader(
             self.loader.datasets["valUnseen"],
             batch_size=self.args.batch_size,
             shuffle=False,
+            num_workers=0,
         )
         if self.args.evaluate:
             self.loader.build_dataset(file="test_data_full.json")
@@ -117,20 +118,19 @@ class LEDAgent:
         self.scores(mode, acc_k1, acc_topk, le)
         self.tensorboard_writer(mode.lower(), epoch, loss, acc_topk, le)
         if mode == "ValUnseen" and self.args.model_save:
+            self.savename = (
+                f"{self.checkpoint_dir}/Epoch{epoch}_Acc1K-{np.mean(acc_k1):.4f}.pt"
+            )
+            torch.save(self.model.get_state_dict(), self.savename)
+            print(f"saved at {self.savename}")
             if np.mean(acc_k1) > self.best_val_acc:
-                self.savename = (
-                    f"{self.checkpoint_dir}/Epoch{epoch}_Acc1K-{np.mean(acc_k1)}.pt"
-                )
-                torch.save(self.model.state_dict, self.savename)
-                print(f"saved at {self.savename}")
                 self.best_val_acc = np.mean(acc_k1)
                 self.patience = -1
             self.patience += 1
 
     def train(self):
         print("\nStarting Training...")
-        self.model = XRN(self.args)
-        for epoch in range(self.args.num_epoch):
+        for epoch in range(0, self.args.num_epoch):
             print("Epoch ", epoch)
             self.model.train_start()
             loss = []
@@ -138,10 +138,16 @@ class LEDAgent:
             print("Mode-", "train")
             for batch_data in tqdm.tqdm(self.train_iterator):
                 k1, topk, e, l = self.model.train_emb(*batch_data)
-                loss.append(l.item())
-                acc_k1.append(k1)
-                acc_topk.append(topk)
-                le.extend(e)
+                del batch_data
+                try:
+                    loss.append(l.item())
+                    acc_k1.append(k1)
+                    acc_topk.append(topk)
+                    le.extend(e)
+                except:
+                    import ipdb
+
+                    ipdb.set_trace()
             print(f"\tTraining Loss: {np.mean(loss)}")
             self.scores("Training", acc_k1, acc_topk, le)
             self.tensorboard_writer("train", epoch, loss, acc_topk, le)
@@ -154,18 +160,28 @@ class LEDAgent:
     def run(self):
         if self.args.train:
             self.load_data()
+            if self.args.attention:
+                self.model = AttentionXRN(self.args)
+            else:
+                self.model = XRN(self.args)
+                # self.model.load_state_dict()
             self.train()
             print("Training Ended...")
             print("Last Model Saved @", self.savename)
 
-        # if self.args.evaluate:
-        #     self.model = XRN(self.args)
-        #     self.model.load_state_dict()
-        #     self.load_data()
-        #     self.evaluate(self.test_iterator, mode="Test")
+        if self.args.evaluate:
+            self.load_data()
+            if self.args.attention:
+                self.model = AttentionXRN(self.args)
+
+            else:
+                self.model = XRN(self.args)
+            self.model.load_state_dict()
+            self.evaluate(0, self.valseen_iterator, mode="ValSeen")
+            self.evaluate(0, self.val_unseen_iterator, mode="ValUnseen")
 
 
 if __name__ == "__main__":
-    args = cfg.parse_args()
+    args = parse_args()
     agent = LEDAgent(args)
     agent.run()

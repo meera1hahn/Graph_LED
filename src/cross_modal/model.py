@@ -1,11 +1,12 @@
+import numpy as np
+import json
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-import numpy as np
-from collections import OrderedDict
-from utils import get_geo_dist
-import json
+
+from src.utils import get_geo_dist
 
 
 class FullModel(nn.Module):
@@ -39,44 +40,28 @@ class EncoderImage(nn.Module):
             nn.Linear(512, 1),
         )
         self.sig = nn.Sigmoid()
+        self.ffc.apply(self.init_weights)
+        self.predict.apply(self.init_weights)
 
     def forward(self, images, cap_emb):
         """Extract image feature vectors."""
         # assuming that the precomputed features are already l2-normalized
-        batch_size, num_nodes = images.size()[0:2]
+        batch_size, num_nodes, patches, feats = images.size()
         features = self.ffc(images)  # (N,340,36,64)
         features = features.flatten(2)  # (N,340,2304)
+        feat_size = cap_emb.size()[1]
         cap_emb = cap_emb.unsqueeze(1).expand(
-            batch_size, num_nodes, 2304
+            batch_size, num_nodes, feat_size
         )  # (N,340,cap_embed_size)
         features = torch.mul(features, cap_emb)
-        # features = torch.cat((features, cap_emb), -1)
         predict = self.predict(features)  # (N,340,2560)
         predict = F.log_softmax(predict, 1)
         return predict
 
-
-# class EncoderImage(nn.Module):
-#     def __init__(self, opt):
-#         super(EncoderImage, self).__init__()
-#         self.ffc = nn.Sequential(
-#             nn.Linear(opt.pano_embed_size, 512),
-#             nn.ReLU(True),
-#         )
-#         self.predict = nn.Sequential(
-#             nn.Linear(512, 1),
-#         )
-#         self.sig = nn.Sigmoid()
-
-#     def forward(self, images, cap_emb):
-#         """Extract image feature vectors."""
-#         # assuming that the precomputed features are already l2-normalized
-#         batch_size = node_feats.size()[0]
-#         features = self.ffc(images)
-#         features = torch.mul((features, cap_emb), -1)
-#         predict = self.predict(features)
-#         predict = F.log_softmax(predict.view(batch_size, -1), 1)
-#         return predict
+    def init_weights(self, m):
+        if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
 
 
 class EncoderText(nn.Module):
@@ -156,13 +141,12 @@ class XRN(object):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt.lr)
         self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
 
-    def state_dict(self):
-        state_dict = self.model.state_dict()
-        return state_dict
+    def get_state_dict(self):
+        return self.model.state_dict()
 
     def load_state_dict(self):
         print("=> loading checkpoint '{}'".format(self.opt.eval_ckpt))
-        self.model.load_state_dict(self.opt.eval_ckpt)
+        self.model.load_state_dict(torch.load(self.opt.eval_ckpt))
 
     def train_start(self):
         # switch to train mode
@@ -203,7 +187,7 @@ class XRN(object):
         k = 5
         k1_correct = 0.0
         topk_correct = 0.0
-        LE = []
+        le = []
         for i in range(batch_size):
             non_null = np.where(node_names[i, :] != "null")[0]
             topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
@@ -213,11 +197,11 @@ class XRN(object):
             graph = self.opt.scan_graphs[info_elem[2][i]]
             pred_vp = node_names[i, :][topk1]
             true_vp = node_names[i, :][top_true[i]]
-            LE.append(get_geo_dist(graph, pred_vp, true_vp))
+            le.append(get_geo_dist(graph, pred_vp, true_vp))
 
         accuracy_k1 = k1_correct * 1.0 / batch_size
         accuracy_topk = topk_correct * 1.0 / batch_size
-        return accuracy_k1, accuracy_topk, LE, loss
+        return accuracy_k1, accuracy_topk, le, loss
 
     def train_emb(
         self,
@@ -230,10 +214,14 @@ class XRN(object):
         *args,
     ):
         self.optimizer.zero_grad()
-        accuracy_k1, accuracy_topk, LE, loss = self.run_emb(
+        accuracy_k1, accuracy_topk, le, loss = self.run_emb(
             text, seq_length, node_feats, anchor, node_names, info_elem, mode="train"
         )
         loss.backward()
         self.optimizer.step()
+        del text
+        del seq_length
+        del node_feats
+        del anchor
 
-        return accuracy_k1, accuracy_topk, LE, loss
+        return accuracy_k1, accuracy_topk, le, loss

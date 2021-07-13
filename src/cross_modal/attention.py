@@ -1,11 +1,12 @@
+import numpy as np
+import json
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-import numpy as np
-from collections import OrderedDict
-from utils import get_geo_dist
-import json
+
+from src.utils import get_geo_dist
 
 
 class AttentionModel(nn.Module):
@@ -15,37 +16,68 @@ class AttentionModel(nn.Module):
         self.txt_encoder = EncoderText(opt)
         self.img_encoder = EncoderImage(opt)
         self.predict = nn.Sequential(
-            nn.Linear(1024, 512),
+            nn.Linear(2048, 512),
             nn.ReLU(True),
             nn.Linear(512, 1),
         )
+        self.img_encoder.img_lin1.apply(self.init_weights)
+        self.predict.apply(self.init_weights)
 
     def forward(self, node_feats, text, seq_length):
         """Compute the image and caption embeddings"""
         cap_emb = self.txt_encoder(text, seq_length)
         img_emb = self.img_encoder(node_feats, cap_emb)
-        joint_emb = torch.mul(img_emb, cap_emb)
+        joint_emb = torch.mul(
+            img_emb,
+            cap_emb.unsqueeze(1).expand(
+                node_feats.size()[0], node_feats.size()[1], 2048
+            ),
+        )
+        joint_emb = self.predict(joint_emb)
         predict = F.log_softmax(joint_emb, 1)
         return predict
+
+    def init_weights(self, m):
+        if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
 
 
 class EncoderImage(nn.Module):
     def __init__(self, opt):
         super(EncoderImage, self).__init__()
-        self.img_fc = nn.Sequential(
-            nn.Linear(opt.pano_embed_size, 2048),
-            nn.ReLU(True),
-            nn.Dropout(0.5),
-            nn.Linear(2048, 1024),
-        )
+        # self.img_fc = nn.Sequential(
+        #     nn.Linear(opt.pano_embed_size, 512),
+        #     nn.ReLU(True),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(512, 64),
+        # )
+        self.img_lin1 = nn.Linear(opt.pano_embed_size, 2048)
+        # self.img_lin2 = nn.Linear(opt.pano_embed_size, 1024)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, images, cap_emb):
-        import ipdb
+        """self attention"""
+        # query = self.img_lin1(images)  # (N,340,36,1024)
+        # key = self.img_lin2(images)  # (N,340,36,1024)
+        # batch, pano, patch, feat = query.size()
+        # query = query.view(batch * pano, patch, feat).permute(
+        #     0, 2, 1
+        # )  # (N,340,1024, 36)
+        # key = key.view(batch * pano, patch, feat)  # (N*340,36,1024)
+        # attention = self.softmax(torch.bmm(query, key))# (N*340,36,36)
+        # proj = self.img_fc(images).view(batch * pano, patch, feat)
+        # img_emb = torch.bmm(proj, attention.permute(0, 2, 1))
+        # img_emb = img_emb.view(batch, pano, patch, feat)
 
-        ipdb.set_trace()
-        img_emb = self.img_fc(images)  # (N,340,36,64)
-        attention = self.softmax(torch.bmm(cap_emb, img_emb))
-        img_emb = torch.bmm(attention, img_emb)
+        """dialog attention"""
+        img_emb = self.img_lin1(images)
+        batch, pano, patch, feat = img_emb.size()
+        img_emb = img_emb.view(batch * pano, patch, feat)
+        cap_emb = torch.repeat_interleave(cap_emb, pano, dim=0)
+        attention = self.softmax(torch.bmm(img_emb, cap_emb.unsqueeze(2)))
+        img_emb = torch.bmm(attention.permute(0, 2, 1), img_emb)
+        img_emb = img_emb.view(batch, pano, feat)
         return img_emb
 
 
@@ -69,7 +101,7 @@ class EncoderText(nn.Module):
 
         self.lstm = nn.LSTM(
             self.embed_size,
-            512,
+            1024,
             bidirectional=self.bidirectional,
             batch_first=True,
             dropout=0.0,
@@ -101,6 +133,7 @@ class EncoderText(nn.Module):
 
 class AttentionXRN(object):
     def __init__(self, opt):
+        print("using attention model")
         # Cuda
         self.device = (
             torch.device(f"cuda:{opt.cuda}")
@@ -124,22 +157,14 @@ class AttentionXRN(object):
         self.mrl_criterion = nn.MarginRankingLoss(margin=1)
         self.kl_criterion = nn.KLDivLoss(reduction="batchmean")
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt.lr)
-        self.weight_init()
         self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
 
-    def weight_init(self):
-        if self.opt.evaluate:
-            init_path = "save/coco_resnet_restval/model_best.pth.tar"
-            print("=> loading checkpoint '{}'".format(init_path))
-            checkpoint = torch.load(init_path)
-            self.load_state_dict(checkpoint["model"])
+    def get_state_dict(self):
+        return self.model.state_dict()
 
-    def state_dict(self):
-        state_dict = self.model.state_dict()
-        return state_dict
-
-    def load_state_dict(self, state_dict):
-        self.model.load_state_dict(state_dict)
+    def load_state_dict(self):
+        print("=> loading checkpoint '{}'".format(self.opt.eval_ckpt))
+        self.model.load_state_dict(self.opt.eval_ckpt)
 
     def train_start(self):
         # switch to train mode
@@ -164,6 +189,7 @@ class AttentionXRN(object):
         mode="eval",
         *args,
     ):
+
         batch_size = node_feats.size()[0]
         predict = self.model(
             node_feats.to(self.device),
