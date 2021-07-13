@@ -25,13 +25,11 @@ def random_node_selection(args, split):
     )
 
 
-def evaluate(args, split):
-    split_name = split.split("_")[0]
+def evaluate(args, splitFile, run_name):
+    split_name = splitFile.split("_")[0]
     distance_scores = []
-    splitData = json.load(open(args.data_dir + split))
-    fileName = (
-        args.predictions_dir + "randomBaseline_" + split_name + "_submission.json"
-    )
+    splitData = json.load(open(args.data_dir + splitFile))
+    fileName = args.predictions_dir + run_name + "_" + split_name + "_submission.json"
     submission = json.load(open(fileName))
     for gt in splitData:
         gt_graph = args.scan_graphs[gt["scanName"]]
@@ -59,9 +57,9 @@ if __name__ == "__main__":
         "test_data_full.json",
     ]
 
-    for split in data_splits:
+    for splitFile in data_splits:
         random_node_selection(
             args,
-            split,
+            splitFile,
         )
-        evaluate(args, split)
+        evaluate(args, splitFile, run_name="randomBaseline")
