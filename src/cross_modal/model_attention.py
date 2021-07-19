@@ -88,9 +88,7 @@ class EncoderText(nn.Module):
         self.input_size = opt.rnn_input_size
         self.embed_size = opt.rnn_embed_size
         self.hidden_size = opt.rnn_hidden_size
-        self.num_layers = opt.num_rnn_layers
         self.reduce = "last" if not opt.bidirectional else "mean"
-        self.embedding_type = opt.embedding_type
         self.embedding_dir = opt.embedding_dir
 
         glove_weights = torch.FloatTensor(
@@ -105,15 +103,15 @@ class EncoderText(nn.Module):
             bidirectional=self.bidirectional,
             batch_first=True,
             dropout=0.0,
-            num_layers=self.num_layers,
+            num_layers=1,  # self.num_layers,
         )
-        self.dropout = nn.Dropout(p=opt.embed_dropout)
+        self.dropout = nn.Dropout(p=0.5)
 
     def forward(self, x, seq_lengths):
         embed = self.embedding(x)
         embed = self.dropout(embed)
         embed_packed = pack_padded_sequence(
-            embed, seq_lengths, enforce_sorted=False, batch_first=True
+            embed, seq_lengths.cpu(), enforce_sorted=False, batch_first=True
         )
 
         out_packed = embed_packed
@@ -157,14 +155,14 @@ class AttentionXRN(object):
         self.mrl_criterion = nn.MarginRankingLoss(margin=1)
         self.kl_criterion = nn.KLDivLoss(reduction="batchmean")
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt.lr)
-        self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
+        self.geodistance_nodes = json.load(open("../geodistance_nodes.json"))
 
     def get_state_dict(self):
         return self.model.state_dict()
 
     def load_state_dict(self):
         print("=> loading checkpoint '{}'".format(self.opt.eval_ckpt))
-        self.model.load_state_dict(self.opt.eval_ckpt)
+        self.model.load_state_dict(torch.load(self.opt.eval_ckpt))
 
     def train_start(self):
         # switch to train mode
@@ -207,20 +205,24 @@ class AttentionXRN(object):
         k1_correct = 0.0
         topk_correct = 0.0
         LE = []
+        episode_predictions = []
         for i in range(batch_size):
             non_null = np.where(node_names[i, :] != "null")[0]
-            topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
-            k1_correct += torch.eq(topk1, top_true[i])
+            topk1 = non_null[torch.tensor(np.asarray(predict[i, :][non_null])).argmax()]
+            k1_correct += torch.eq(torch.tensor(topk1), top_true[i])
+            # topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
+            # k1_correct += torch.eq(topk1, top_true[i])
             topk5 = torch.topk(predict[i, :], k)[1]
             topk_correct += top_true[i] in topk5
             graph = self.opt.scan_graphs[info_elem[2][i]]
             pred_vp = node_names[i, :][topk1]
             true_vp = node_names[i, :][top_true[i]]
             LE.append(get_geo_dist(graph, pred_vp, true_vp))
+            episode_predictions.append([info_elem[3][i], pred_vp])
 
         accuracy_k1 = k1_correct * 1.0 / batch_size
         accuracy_topk = topk_correct * 1.0 / batch_size
-        return accuracy_k1, accuracy_topk, LE, loss
+        return accuracy_k1, accuracy_topk, LE, loss, episode_predictions
 
     def train_emb(
         self,
@@ -233,7 +235,7 @@ class AttentionXRN(object):
         *args,
     ):
         self.optimizer.zero_grad()
-        accuracy_k1, accuracy_topk, LE, loss = self.run_emb(
+        accuracy_k1, accuracy_topk, LE, loss, _ = self.run_emb(
             text, seq_length, node_feats, anchor, node_names, info_elem, mode="train"
         )
         loss.backward()

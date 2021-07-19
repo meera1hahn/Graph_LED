@@ -4,14 +4,12 @@ from nltk.tokenize import word_tokenize
 import numpy as np
 import copy
 import re
-from led_dataset import LEDDataset
-import base64
 import csv
 import sys
 import numpy as np
-from tqdm import tqdm
 
 csv.field_size_limit(sys.maxsize)
+from src.cross_modal.led_dataset import LEDDataset
 
 
 class Loader:
@@ -66,13 +64,7 @@ class Loader:
         print("[{}]: Loading JSON file...".format(mode))
         data = json.load(open(self.data_dir + file))
 
-        if isinstance(self.args.sample_used, tuple):
-            start, end = self.args.sample_used
-            data = data[start:end]
-            num_samples = end - start
-        elif isinstance(self.args.sample_used, float):
-            num_samples = int(len(data) * self.args.sample_used)
-            data = data[:num_samples]
+        num_samples = int(len(data))
         print(
             "[{}]: Using {} ({}%) samples".format(
                 mode, num_samples, num_samples / len(data) * 100

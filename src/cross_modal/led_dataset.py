@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from PIL import Image
 import json
-import random
 
 
 class LEDDataset(Dataset):
@@ -14,7 +13,6 @@ class LEDDataset(Dataset):
         scan_names,
         episode_ids,
         viewpoints,
-        # pano_feats,
         texts,
         seq_lengths,
         dialogs,
@@ -71,7 +69,7 @@ class LEDDataset(Dataset):
             node_names.append("null")
         return node_names, node_feats, anchor_index
 
-    def get_contrastive_items(self, index):
+    def get_train_items(self, index):
         scan_id = self.scan_names[index]
         vp = self.viewpoints[index]
         dists = self.geodistance_nodes[scan_id][vp]
@@ -90,16 +88,23 @@ class LEDDataset(Dataset):
         target_probabilites = target_probabilites / target_probabilites.sum()
         for _ in range(len(target_names), self.max_nodes):
             target_names.append("null")
-        return target_names, target_feats, target_probabilites
+
+        # shuffle train indices
+        shuffle_indices = np.arange(self.max_nodes)
+        np.random.shuffle(shuffle_indices)
+        return (
+            np.asarray(target_names)[shuffle_indices].tolist(),
+            target_feats[shuffle_indices],
+            target_probabilites[shuffle_indices],
+        )
+        # return target_names,target_feats,target_probabilites
 
     def __getitem__(self, index):
         text = torch.LongTensor(self.texts[index])
         seq_length = np.array(self.seq_lengths[index])
         viz_elem, info_elem = self.get_info(index)
         if "train" in self.mode:
-            node_names, node_feats, target_probabilites = self.get_contrastive_items(
-                index
-            )
+            node_names, node_feats, target_probabilites = self.get_train_items(index)
         else:
             node_names, node_feats, anchor_index = self.get_test_items(index)
             target_probabilites = torch.zeros(self.max_nodes)

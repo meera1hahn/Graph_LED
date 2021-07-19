@@ -1,7 +1,7 @@
 import json
 import random
 import numpy as np
-from src.utils import get_geo_dist
+from src.utils import evaluate
 from src.cfg import *
 
 
@@ -22,28 +22,6 @@ def random_node_selection(args, split):
         submission,
         open(fileName, "w"),
         indent=3,
-    )
-
-
-def evaluate(args, splitFile, run_name):
-    split_name = splitFile.split("_")[0]
-    distance_scores = []
-    splitData = json.load(open(args.data_dir + splitFile))
-    fileName = args.predictions_dir + run_name + "_" + split_name + "_submission.json"
-    submission = json.load(open(fileName))
-    for gt in splitData:
-        gt_graph = args.scan_graphs[gt["scanName"]]
-        gt_vp = gt["finalLocation"]["viewPoint"]
-        pred_vp = submission[gt["episodeId"]]["viewpoint"]
-        distance_scores.append(get_geo_dist(gt_graph, gt_vp, pred_vp))
-
-    distance_scores = np.asarray(distance_scores)
-    print(
-        f"Result {split_name} -- \n LE: {np.mean(distance_scores):.4f}",
-        f"Acc@0m: {sum(distance_scores <= 0) * 1.0 / len(distance_scores):.4f}",
-        f"Acc@3m: {sum(distance_scores <= 3) * 1.0 / len(distance_scores):.4f}",
-        f"Acc@5m: {sum(distance_scores <= 5) * 1.0 / len(distance_scores):.4f}",
-        f"Acc@10m: {sum(distance_scores <= 10) * 1.0 / len(distance_scores):.4f}",
     )
 
 

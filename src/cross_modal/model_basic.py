@@ -96,7 +96,7 @@ class EncoderText(nn.Module):
         embed = self.embedding(x)
         embed = self.dropout(embed)
         embed_packed = pack_padded_sequence(
-            embed, seq_lengths, enforce_sorted=False, batch_first=True
+            embed, seq_lengths.cpu(), enforce_sorted=False, batch_first=True
         )
 
         out_packed = embed_packed
@@ -139,7 +139,7 @@ class XRN(object):
         self.mrl_criterion = nn.MarginRankingLoss(margin=1)
         self.kl_criterion = nn.KLDivLoss(reduction="batchmean")
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt.lr)
-        self.geodistance_nodes = json.load(open("geodistance_nodes.json"))
+        self.geodistance_nodes = json.load(open("../geodistance_nodes.json"))
 
     def get_state_dict(self):
         return self.model.state_dict()
@@ -190,8 +190,10 @@ class XRN(object):
         le = []
         for i in range(batch_size):
             non_null = np.where(node_names[i, :] != "null")[0]
-            topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
-            k1_correct += torch.eq(topk1, top_true[i])
+            topk1 = non_null[torch.tensor(np.asarray(predict[i, :][non_null])).argmax()]
+            k1_correct += torch.eq(torch.tensor(topk1), top_true[i])
+            # topk1 = torch.tensor(np.asarray(predict[i, :][non_null])).argmax()
+            # k1_correct += torch.eq(topk1, top_true[i])
             topk5 = torch.topk(predict[i, :], k)[1]
             topk_correct += top_true[i] in topk5
             graph = self.opt.scan_graphs[info_elem[2][i]]
