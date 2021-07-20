@@ -11,8 +11,7 @@ import json
 from accelerate import Accelerator
 
 from src.cross_modal.loader import Loader
-from src.cross_modal.model_basic import XRN
-from src.cross_modal.model_attention import AttentionXRN
+from src.cross_modal.xrn import XRN
 from src.cfg import *
 from src.utils import evaluate
 
@@ -51,7 +50,7 @@ class LEDAgent:
     def load_data(self):
         print("Loading Data...")
         self.loader = Loader(data_dir=self.args.data_dir, args=self.args)
-        self.loader.build_dataset(file="train_data.json")  # train_expanded_data.json")
+        self.loader.build_dataset(file="train_expanded_data.json")
         self.loader.build_dataset(file="valSeen_data.json")
         self.loader.build_dataset(file="valUnseen_data.json")
         self.train_iterator = DataLoader(
@@ -121,14 +120,14 @@ class LEDAgent:
         if not self.args.evaluate:
             self.scores(mode, acc_k1, acc_topk, le)
             self.tensorboard_writer(mode.lower(), loss, acc_topk, le)
-        if mode == "ValUnseen" and self.args.model_save and not self.args.evaluate:
-            self.savename = f"{self.checkpoint_dir}/Epoch{self.epoch}_Acc1K-{np.mean(acc_k1):.4f}.pt"
-            torch.save(self.model.get_state_dict(), self.savename)
-            print(f"saved at {self.savename}")
-            if np.mean(acc_k1) > self.best_val_acc:
-                self.best_val_acc = np.mean(acc_k1)
-                self.patience = -1
-            self.patience += 1
+            if mode == "ValUnseen" and self.args.model_save:
+                self.savename = f"{self.checkpoint_dir}/Epoch{self.epoch}_Acc1K-{np.mean(acc_k1):.4f}.pt"
+                torch.save(self.model.get_state_dict(), self.savename)
+                print(f"saved at {self.savename}")
+                if np.mean(acc_k1) > self.best_val_acc:
+                    self.best_val_acc = np.mean(acc_k1)
+                    self.patience = -1
+                self.patience += 1
         if self.args.evaluate:
             fileName = f"{self.args.predictions_dir}{self.args.run_name}_{mode}_submission.json"
             json.dump(submission, open(fileName, "w"), indent=3)
@@ -164,24 +163,17 @@ class LEDAgent:
     def run(self):
         if self.args.train:
             self.load_data()
-            if self.args.attention:
-                self.model = AttentionXRN(self.args)
-            else:
-                self.model = XRN(self.args)
+            self.model = XRN(self.args)
+
             self.train()
             print("Training Ended...")
             print("Last Model Saved @", self.savename)
 
         if self.args.evaluate:
             self.load_data()
-            if self.args.attention:
-                self.model = AttentionXRN(self.args)
-            else:
-                self.model = XRN(self.args)
+            self.model = XRN(self.args)
             self.model.load_state_dict()
 
-            self.evaluate(self.train_iterator, mode="train")
-            evaluate(self.args, "train_data.json", self.args.run_name)
             self.evaluate(self.valseen_iterator, mode="valSeen")
             evaluate(self.args, "valSeen_data.json", self.args.run_name)
             self.evaluate(self.val_unseen_iterator, mode="valUnseen")

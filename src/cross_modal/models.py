@@ -1,9 +1,12 @@
 import numpy as np
+import json
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
+from src.utils import get_geo_dist
 
 """MODEL WITH CROSSMODAL ATTENTION"""
 
@@ -194,9 +197,7 @@ class EncoderText(nn.Module):
         self.input_size = opt.rnn_input_size
         self.embed_size = opt.rnn_embed_size
         self.hidden_size = opt.rnn_hidden_size
-        self.num_layers = opt.num_rnn_layers
         self.reduce = "last" if not opt.bidirectional else "mean"
-        self.embedding_type = opt.embedding_type
         self.embedding_dir = opt.embedding_dir
 
         glove_weights = torch.FloatTensor(
@@ -211,9 +212,9 @@ class EncoderText(nn.Module):
             bidirectional=self.bidirectional,
             batch_first=True,
             dropout=0.0,
-            num_layers=self.num_layers,
+            num_layers=1,
         )
-        self.dropout = nn.Dropout(p=opt.embed_dropout)
+        self.dropout = nn.Dropout(p=0.5)
 
     def forward(self, x, seq_lengths):
         embed = self.embedding(x)

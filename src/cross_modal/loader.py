@@ -28,7 +28,7 @@ class Loader:
             scan_names.append(data_obj["scanName"])
             episode_ids.append(data_obj["episodeId"])
             if "test" in mode:
-                viewpoints.append(data_obj["finalLocation"]["viewPoint"])
+                viewpoints.append("")
             else:
                 viewpoints.append(data_obj["finalLocation"]["viewPoint"])
             dialogs.append(self.add_tokens(data_obj["dialogArray"]))

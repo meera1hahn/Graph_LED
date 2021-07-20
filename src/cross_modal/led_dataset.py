@@ -37,34 +37,21 @@ class LEDDataset(Dataset):
             self.max_nodes = self.args.max_nodes_test
 
     def get_info(self, index):
-        viz_elem = None
-        ## if visualization
-        level = self.node_levels[self.scan_names[index]][self.viewpoints[index]][-1]
-        pretty_image = Image.open(
-            "{}floor_{}/{}_{}.png".format(
-                self.args.image_dir,
-                level,
-                self.scan_names[index],
-                level,
-            )
-        )
-        #
-        viz_elem = np.asarray(pretty_image)[:, :, :3]
-
         info_elem = [
             self.dialogs[index],
-            level,
             self.scan_names[index],
             self.episode_ids[index],
             self.viewpoints[index],
         ]
-        return viz_elem, info_elem
+        return info_elem
 
     def get_test_items(self, index):
+        anchor_index = 0
         scan_id = self.scan_names[index]
         node_feats = torch.load(self.feat_dir + scan_id + ".pt")
         node_names = sorted([n for n in self.args.scan_graphs[scan_id].nodes()])
-        anchor_index = node_names.index(self.viewpoints[index])
+        if self.mode != "test":
+            anchor_index = node_names.index(self.viewpoints[index])
         for _ in range(len(node_names), self.max_nodes):
             node_names.append("null")
         return node_names, node_feats, anchor_index
@@ -102,7 +89,7 @@ class LEDDataset(Dataset):
     def __getitem__(self, index):
         text = torch.LongTensor(self.texts[index])
         seq_length = np.array(self.seq_lengths[index])
-        viz_elem, info_elem = self.get_info(index)
+        info_elem = self.get_info(index)
         if "train" in self.mode:
             node_names, node_feats, target_probabilites = self.get_train_items(index)
         else:
@@ -117,7 +104,6 @@ class LEDDataset(Dataset):
             target_probabilites,
             node_names,
             info_elem,
-            viz_elem,
         )
 
     def __len__(self):

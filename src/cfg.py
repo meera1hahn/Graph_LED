@@ -113,7 +113,8 @@ def parse_args():
     args.connect_dir = args.data_base_dir + args.connect_dir
     args.mesh2meters = args.data_base_dir + args.mesh2meters
     args.eval_ckpt = (
-        args.checkpoint_dir + "joint_attention_shuffle_panos/Epoch5_Acc1K-0.1048.pt"
+        args.checkpoint_dir
+        + "test_implementation_changes/Epoch1_Acc1K-0.0086.pt"  # joint_attention_shuffle_panos/Epoch5_Acc1K-0.1048.pt"
     )
     args.scan_graphs = collect_graphs(args)
     return args
