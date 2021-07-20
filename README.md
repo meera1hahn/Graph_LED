@@ -5,10 +5,10 @@ https://arxiv.org/abs/2011.08277
 [[project website](https://meerahahn.github.io/way/data)]
 
 This repository contains the implemenation of 4 models for the Localization from Embodied Dialog (LED) task on the Matterport3D Navigation Graph. 
-* LingUNet model with residual connections. (from the original paper -- https://arxiv.org/abs/2011.08277)
-* Random Baseline.
-* Simple Crossmodal (dialog and viewpoints) Encoding.
-* Attention Based Crossmodal (dialog and viewpoints) Encoding.
+1. LingUNet model with residual connections. (from the original paper -- https://arxiv.org/abs/2011.08277)
+2. Random Baseline.
+3. Simple Crossmodal (dialog and viewpoints) Encoding.
+4. Attention Based Crossmodal (dialog and viewpoints) Encoding.
 
 # Where Are You? (WAY) Dataset
 
