@@ -1,4 +1,4 @@
-# Graph Based - LED (Localization from Embodied Dialog) Task
+# Graph Based - LED (Localization from Embodied Dialog)
 
 This is the offical repository for the panoramic graph based version of the LED task described in [Where Are You? Localizaiton from Embodied Dialog]
 https://arxiv.org/abs/2011.08277
@@ -27,10 +27,10 @@ To install and setup this repo please follow [INSTALL.md](INSTALL.md)
 ## Usage
 
 To run the lingunet model please see:
-Please see [lingUnet/README.md](lingUnet/README.md)
+Please see [lingunet/README.md](src/lingunet/README.md)
 
 To run the crossmodal models please see:
-Please see [cross_modal/README.md](cross_modal/README.md)
+Please see [cross_modal/README.md](src/cross_modal/README.md)
 
 ## Scores
 * Graph LED uses the geodesic distance on the navigation graph to determine success of a model. Note the orignal paper showed euclidean distance per floor, using the Nav Graph we can produce a prediction over all floors, which increases the difficulty of the task. 
@@ -41,23 +41,23 @@ Please see [cross_modal/README.md](cross_modal/README.md)
 
 Results from provided model with geodesic distance and snap to scene graph (nodes of all floors):
 
-#### val-seen 
+  #### Val-Seen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
-| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 |
-| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 |
-| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 |
-| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 |
+| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
 
-#### val-unseen 
+  #### Val-Unseen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
-| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 |
-| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 |
-| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 |
-| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 |
+| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
 
 
 ## Contributing
