@@ -24,7 +24,15 @@ This project is developed with Python 3.6 and PyTorch 1.7
 
 To install and setup this repo please follow [INSTALL.md](INSTALL.md)
 
-### Predictions
+## Usage
+
+To run the lingunet model please see:
+Please see [lingUnet/README.md](lingUnet/README.md)
+
+To run the crossmodal models please see:
+Please see [cross_modal/README.md](cross_modal/README.md)
+
+## Scores
 * Graph LED uses the geodesic distance on the navigation graph to determine success of a model. Note the orignal paper showed euclidean distance per floor, using the Nav Graph we can produce a prediction over all floors, which increases the difficulty of the task. 
 * The lingUNet implementation in this code base provides a way to snap pixel prediction to a node in the scene graph.
 *  We evaluate accuracy at 0m, 3m, 5m, 10m and geodesic localization error.
@@ -32,7 +40,8 @@ To install and setup this repo please follow [INSTALL.md](INSTALL.md)
 `<episode_id> : {"viewpoint": <predicted_viewpointid>`
 
 Results from provided model with geodesic distance and snap to scene graph (nodes of all floors):
-* val-seen 
+
+#### val-seen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
@@ -41,7 +50,7 @@ Results from provided model with geodesic distance and snap to scene graph (node
 | Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 |
 | Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 |
 
-* val-unseen 
+#### val-unseen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
@@ -50,13 +59,6 @@ Results from provided model with geodesic distance and snap to scene graph (node
 | Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 |
 | Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 |
 
-### Usage
-
-To run the lingunet model please see:
-Please see [lingUnet/README.md](lingUnet/README.md)
-
-To run the crossmodal models please see:
-Please see [cross_modal/README.md](cross_modal/README.md)
 
 ## Contributing
 
