@@ -7,70 +7,42 @@ parser = argparse.ArgumentParser(description="LED task")
 parser.add_argument("--attention", default=False, action="store_true")
 parser.add_argument("--train", default=False, action="store_true")
 parser.add_argument("--evaluate", default=False, action="store_true")
-parser.add_argument("--generate_predictions", default=False, action="store_true")
-parser.add_argument("--eval_predictions", default=False, action="store_true")
-parser.add_argument("--visualize", default=False, action="store_true")
+parser.add_argument("--model_save", default=True, action="store_true")
 
 # Input Paths
+parser.add_argument("--data_dir", type=str, default="../../data/way_splits/")
+parser.add_argument("--image_dir", type=str, default="../../data/floorplans/")
+parser.add_argument("--embedding_dir", type=str, default="../../data/word_embeddings/")
+parser.add_argument("--connect_dir", type=str, default="../../data/connectivity/")
+parser.add_argument("--panofeat_dir", type=str, default="../../data/node_feats/")
 parser.add_argument(
-    "--data_base_dir",
-    type=str,
-    default="/srv/share/mhahn30/Projects/LED/data/public_data/",  # "../data/",
-    help="path to base data directory",
-)
-parser.add_argument(
-    "--data_dir",
-    type=str,
-    default="way_splits/",
-    help="path to data folder where train.json, dev.json, and test.json files",
-)
-parser.add_argument(
-    "--image_dir",
-    type=str,
-    default="floorplans/",
-    help="path to `top down maps`",
-)
-parser.add_argument("--embedding_dir", type=str, default="word_embeddings/")
-parser.add_argument("--connect_dir", type=str, default="connectivity/")
-parser.add_argument(
-    "--mesh2meters", type=str, default="floorplans/pix2meshDistance.json"
+    "--geodistance_file", type=str, default="../../data/geodistance_nodes.json"
 )
 
 # Output Paths
 parser.add_argument(
     "--summary_dir",
     type=str,
-    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/tensorboard/",
-)  # /path/to/tensorboard/")
-parser.add_argument(
-    "--log_dir",
-    type=str,
-    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/logs/",
-)  # /path/to/logs/")
-parser.add_argument(
-    "--visualization_dir",
-    type=str,
-    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/visualizations/",
-)  # /path/to/visualizations/")
+    default="../../log_dir/tensorboard/",
+)
 parser.add_argument(
     "--checkpoint_dir",
     type=str,
-    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/checkpoints/",
-)  # /path/to/checkpoints/")
-parser.add_argument("--model_save", default=True, action="store_true")
+    default="../../log_dir/checkpoints/",
+)
+parser.add_argument(
+    "--predictions_dir",
+    type=str,
+    default="../../log_dir/predictions",
+    help="location of generated predictions to evaluate/visualize",
+)
 parser.add_argument(
     "--eval_ckpt",
     type=str,
     default="ckpt.pt",
     help="a checkpoint to evaluate by either testing or generate_predictions",
 )
-parser.add_argument(
-    "--predictions_dir",
-    type=str,
-    default="/srv/share/mhahn30/Projects/Graph_LED/model_runs/predictions/",
-    # default="./path/to/predictions.json",
-    help="location of generated predictions to evaluate/visualize",
-)
+
 
 # Logging
 parser.add_argument("--print_every", type=int, default=100)
@@ -107,14 +79,5 @@ def collect_graphs(args):  # get scene graphs
 def parse_args():
     args = parser.parse_args()
     args.run_name = args.name
-    args.data_dir = args.data_base_dir + args.data_dir
-    args.image_dir = args.data_base_dir + args.image_dir
-    args.embedding_dir = args.data_base_dir + args.embedding_dir
-    args.connect_dir = args.data_base_dir + args.connect_dir
-    args.mesh2meters = args.data_base_dir + args.mesh2meters
-    args.eval_ckpt = (
-        args.checkpoint_dir
-        + "test_implementation_changes/Epoch1_Acc1K-0.0086.pt"  # joint_attention_shuffle_panos/Epoch5_Acc1K-0.1048.pt"
-    )
     args.scan_graphs = collect_graphs(args)
     return args

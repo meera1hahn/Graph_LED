@@ -22,16 +22,12 @@ class LEDDataset(Dataset):
         self.scan_names = scan_names
         self.episode_ids = episode_ids
         self.viewpoints = viewpoints
-        # self.pano_feats = pano_feats
         self.texts = texts
         self.seq_lengths = seq_lengths
         self.dialogs = dialogs
         self.node_levels = None
-        ## if visualization
         self.node_levels = json.load(open(args.image_dir + "allScans_Node2pix.json"))
-        self.geodistance_nodes = json.load(open("../geodistance_nodes.json"))
-        self.feat_dir = "/srv/flash1/mhahn30/LED/node_feats/"
-        # max nodes
+        self.geodistance_nodes = json.load(open(self.args.geodistance_file))
         self.max_nodes = self.args.max_nodes
         if self.mode == "test" or self.mode == "valUnseen":
             self.max_nodes = self.args.max_nodes_test
@@ -48,7 +44,7 @@ class LEDDataset(Dataset):
     def get_test_items(self, index):
         anchor_index = 0
         scan_id = self.scan_names[index]
-        node_feats = torch.load(self.feat_dir + scan_id + ".pt")
+        node_feats = torch.load(self.args.panofeat_dir + scan_id + ".pt")
         node_names = sorted([n for n in self.args.scan_graphs[scan_id].nodes()])
         if self.mode != "test":
             anchor_index = node_names.index(self.viewpoints[index])
@@ -60,7 +56,7 @@ class LEDDataset(Dataset):
         scan_id = self.scan_names[index]
         vp = self.viewpoints[index]
         dists = self.geodistance_nodes[scan_id][vp]
-        target_feats = torch.load(self.feat_dir + scan_id + ".pt")
+        target_feats = torch.load(self.args.panofeat_dir + scan_id + ".pt")
         target_names = sorted([n for n in self.args.scan_graphs[scan_id].nodes()])
         target_probabilites = torch.zeros((self.max_nodes))
         for i, node in enumerate(target_names):

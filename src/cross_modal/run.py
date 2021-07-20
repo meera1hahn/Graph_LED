@@ -73,7 +73,7 @@ class LEDAgent:
             num_workers=1,
         )
         if self.args.evaluate:
-            self.loader.build_dataset(file="test_data_full.json")
+            self.loader.build_dataset(file="test_data.json")
             self.test_iterator = DataLoader(
                 self.loader.datasets["test"],
                 batch_size=self.args.batch_size,
@@ -179,7 +179,7 @@ class LEDAgent:
             self.evaluate(self.val_unseen_iterator, mode="valUnseen")
             evaluate(self.args, "valUnseen_data.json", self.args.run_name)
             self.evaluate(self.test_iterator, mode="test")
-            evaluate(self.args, "test_data_full.json", self.args.run_name)
+            # evaluate(self.args, "test_data_full.json", self.args.run_name)
 
 
 if __name__ == "__main__":
