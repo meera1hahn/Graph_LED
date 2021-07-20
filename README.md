@@ -45,19 +45,19 @@ Results from provided model with geodesic distance and snap to scene graph (node
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
-| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Random Node*         | 20.8012 | 0.0033 | 0.0623 | 0.1082 | 0.2131
 | LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Simple Crossmodal    | 12.5599 | 0.1770 | 0.3672 | 0.4754 | 0.6164
+| Crossmodal w/ att    | 9.8346 | 0.1836 | 0.4197| 0.5607 | 0.7016
 
   #### Val-Unseen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
-| Random Node*         | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Random Node*         | 18.6135 | 0.0190 | 0.0553 | 0.1105 | 0.2694
 | LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Simple Crossmodal    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Crossmodal w/ att    | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
+| Simple Crossmodal    | 12.8716 | 0.0777 | 0.2038 | 0.3437 | 0.5147
+| Crossmodal w/ Att    | 10.9343 | 0.1054 | 0.2919 | 0.4111 | 0.5769
 
 
 ## Contributing
