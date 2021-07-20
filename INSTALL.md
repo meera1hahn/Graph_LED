@@ -27,9 +27,18 @@
    ```
    python scripts/download-auxiliary-data.py
    ```
-   
-This command will download the WAY dataset described [here (https://meerahahn.github.io/way/data)] into the data folder.
+2. Download the Resent 152 places features for all the panos (https://github.com/peteanderson80/Matterport3DSimulator):
+   ```
+   cd data
+   wget https://www.dropbox.com/s/85tpa6tc3enl5ud/ResNet-152-places365.zip?dl=1
+   ```
+3. Extract the panos features needed.
+   ```
+   cd ..
+   python scripts/process-pano-feats.py
+   ```
 
+The first step will download WAY dataset described [here (https://meerahahn.github.io/way/data)] into the data folder.
 
 | Dataset | Extract path | Size |
 |-------------- |---------------------------- |------- |
