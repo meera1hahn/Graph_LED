@@ -64,13 +64,12 @@ After following the steps above the `data` directory should look like this:
 
 ```
 data/
-  beamsearch/
-  config/
   connectivity/
   distances/
-  logs/
-  matterport-ResNet-101-faster-rcnn-genome.lmdb
+  floorplans/
+  geodistance_nodes.json
   models/
-  runs/
-  task/
+  node_feats/
+  way_splits/
+  word_embeddings/
 ```
