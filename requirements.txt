@@ -1,0 +1,14 @@
+torch>=1.4.0
+torchvision>=0.5.0	
+tqdm>=4.0.0
+msgpack_numpy
+numpy
+scipy
+Pillow
+argparse
+DateTime
+nltk
+matplotlib
+networkx
+tensorboard
+gdown
