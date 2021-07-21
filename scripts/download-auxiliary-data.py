@@ -40,6 +40,10 @@ MODEL_LINKS = [
         "data/models/crossmodal_simple.pt",
         "https://drive.google.com/uc?id=1kvUofiaMCz6g6f1BWfvSnO32aU278HUi",
     ),
+    (
+        "data/models/lingunet-skip.pt",
+        "https://drive.google.com/uc?id=1v_sb-PdKvJ71yKbW8PXARJt_3w45xQZa",
+    ),
 ]
 
 CONNECTIVITY_ROOT_URL = "https://raw.githubusercontent.com/peteanderson80/Matterport3DSimulator/master/connectivity"
