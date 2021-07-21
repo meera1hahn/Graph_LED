@@ -41,23 +41,23 @@ Please see [cross_modal/README.md](src/cross_modal/README.md)
 
 Results from provided model with geodesic distance and snap to scene graph (nodes of all floors):
 
-  #### Val-Seen 
+#### Val-Seen 
+
+|Model |LE|Acc@0m|Acc@3m|Acc@5m|Acc@10m|
+|------|--|--|--|--|---|
+| Random Node*         | 20.8012 | 0.33 | 6.230 | 10.82 | 21.31
+| LingUNet-Skip        | 9.6486 | 18.69 | 44.59 | 58.36 | 68.52
+| Simple Crossmodal    | 12.5599 | 17.70 | 36.72 | 47.54 | 61.64
+| Crossmodal w/ att    | 9.8346 | 18.36 | 41.97| 56.07 | 70.16
+
+#### Val-Unseen 
 
 |Model |LE|0m|3m|5m|10m|
 |------|--|--|--|--|---|
-| Random Node*         | 20.8012 | 0.0033 | 0.0623 | 0.1082 | 0.2131
-| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Simple Crossmodal    | 12.5599 | 0.1770 | 0.3672 | 0.4754 | 0.6164
-| Crossmodal w/ att    | 9.8346 | 0.1836 | 0.4197| 0.5607 | 0.7016
-
-  #### Val-Unseen 
-
-|Model |LE|0m|3m|5m|10m|
-|------|--|--|--|--|---|
-| Random Node*         | 18.6135 | 0.0190 | 0.0553 | 0.1105 | 0.2694
-| LingUNet-Skip        | 0.0 | 0.0 | 0.0 | 0.0 | 0.0
-| Simple Crossmodal    | 12.8716 | 0.0777 | 0.2038 | 0.3437 | 0.5147
-| Crossmodal w/ Att    | 10.9343 | 0.1054 | 0.2919 | 0.4111 | 0.5769
+| Random Node*         | 18.6135 | 1.90 | 5.53 | 11.05 | 26.94
+| LingUNet-Skip        | 13.7975 | 5.18 | 13.99 | 23.83 | 48.70
+| Simple Crossmodal    | 12.8716 | 7.77 | 20.38 | 34.37 | 51.47
+| Crossmodal w/ Att    | 10.9343 | 10.54 | 29.19 | 41.11 | 57.69
 
 
 ## Contributing

@@ -129,7 +129,8 @@ class LEDAgent:
                     self.patience = -1
                 self.patience += 1
         if self.args.evaluate:
-            fileName = f"{self.args.predictions_dir}{self.args.run_name}_{mode}_submission.json"
+            fileName = f"{self.args.run_name}_{mode}_submission.json"
+            fileName = os.path.join(self.args.predictions_dir, fileName)
             json.dump(submission, open(fileName, "w"), indent=3)
             print("submission saved at ", fileName)
 

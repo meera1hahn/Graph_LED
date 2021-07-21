@@ -5,19 +5,22 @@ import networkx as nx
 import numpy as np
 import math
 import torch.nn as nn
+import os
 
 
 def evaluate(args, splitFile, run_name):
     split_name = splitFile.split("_")[0]
     distance_scores = []
     splitData = json.load(open(args.data_dir + splitFile))
-    fileName = args.predictions_dir + run_name + "_" + split_name + "_submission.json"
+    geodistance_nodes = json.load(open(args.geodistance_file))
+    fileName = f"{run_name}_{split_name}_submission.json"
+    fileName = os.path.join(args.predictions_dir, fileName)
     submission = json.load(open(fileName))
     for gt in splitData:
-        gt_graph = args.scan_graphs[gt["scanName"]]
         gt_vp = gt["finalLocation"]["viewPoint"]
         pred_vp = submission[gt["episodeId"]]["viewpoint"]
-        distance_scores.append(get_geo_dist(gt_graph, gt_vp, pred_vp))
+        dist = geodistance_nodes[gt["scanName"]][gt_vp][pred_vp]
+        distance_scores.append(dist)
 
     distance_scores = np.asarray(distance_scores)
     print(
@@ -70,12 +73,11 @@ def get_geo_dist(D, n1, n2):
     return nx.dijkstra_path_length(D, n1, n2)
 
 
-def snap_to_grid(G, node2pix, sn, pred_coord, conversion, level, true_viewpoint=None):
+def snap_to_grid(geodistance_nodes, node2pix, sn, pred_coord, conversion, level):
     min_dist = math.inf
-    best_nodes = []
     best_node = ""
     for node in node2pix[sn].keys():
-        if node2pix[sn][node][2] != int(level) or node not in G:
+        if node2pix[sn][node][2] != int(level) or node not in geodistance_nodes:
             continue
         target_coord = [node2pix[sn][node][0][1], node2pix[sn][node][0][0]]
         dist = np.sqrt(
@@ -85,47 +87,35 @@ def snap_to_grid(G, node2pix, sn, pred_coord, conversion, level, true_viewpoint=
         if dist.item() < min_dist:
             best_node = node
             min_dist = dist.item()
-        if dist < 1:
-            best_nodes.append(node)
-
-    if true_viewpoint != None:
-        min_dist = math.inf
-        for b in best_nodes:
-            dist = get_geo_dist(G, b, true_viewpoint)
-            if dist < min_dist:
-                best_node = b
-                min_dist = dist
     return best_node
 
 
-def distance_from_pixels(node2pix, scan_graphs, preds, mesh_conversions, info_elem):
+def distance_from_pixels(args, preds, mesh_conversions, info_elem, mode):
     """Calculate distances between model predictions and targets within a batch.
     Takes the propablity map over the pixels and returns the geodesic distance"""
-    # calculate location error and accuracy
-    distances = []
-    _, _, scan_names, _, true_viewpoints = info_elem
-    b, max_floors, h, w = preds.size()
-    for pred, conversion, sn, tv in zip(
-        preds,
-        mesh_conversions,
-        scan_names,
-        true_viewpoints,
+    node2pix = json.load(open(args.image_dir + "allScans_Node2pix.json"))
+    geodistance_nodes = json.load(open(args.geodistance_file))
+    distances, episode_predictions = [], []
+    dialogs, levels, scan_names, episode_ids, true_viewpoints = info_elem
+    for pred, conversion, sn, tv, id in zip(
+        preds, mesh_conversions, scan_names, true_viewpoints, episode_ids
     ):
         total_floors = len(set([v[2] for k, v in node2pix[sn].items()]))
         pred = nn.functional.interpolate(
             pred.unsqueeze(1), (700, 1200), mode="bilinear"
         ).squeeze(1)[:total_floors]
         pred_coord = np.unravel_index(pred.argmax(), pred.size())
-        G = scan_graphs[sn]
-        convers = conversion.view(max_floors, 1, 1)[pred_coord[0].item()]
+        convers = conversion.view(args.max_floors, 1, 1)[pred_coord[0].item()]
         pred_viewpoint = snap_to_grid(
-            G,
+            geodistance_nodes[sn],
             node2pix,
             sn,
             [pred_coord[1].item(), pred_coord[2].item()],
             convers,
             pred_coord[0].item(),
-            tv,
         )
-        distances.append(get_geo_dist(G, pred_viewpoint, tv))
-    return distances
+        if mode != "test":
+            dist = geodistance_nodes[sn][tv][pred_viewpoint]
+            distances.append(dist)
+        episode_predictions.append([id, pred_viewpoint])
+    return distances, episode_predictions
