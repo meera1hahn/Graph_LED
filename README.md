@@ -14,6 +14,7 @@ This repository contains the implemenation of 4 models for the Localization from
 
 The Where Are You? (WAY) dataset contains ~6k dialogs in which two humans -- an Observer and a Locator -- complete a cooperative localization task. The Observer is spawned at random in a 3D environment and can navigate from first-person views while answering questions from the Locator. The Locator must localize the Observer in a map by asking questions and giving instructions. Based on this dataset, we define three challenging tasks: Localization from Embodied Dialog or LED (localizing the Observer from dialog history), Embodied Visual Dialog (modeling the Observer), and Cooperative Localization (modeling both agents).
 
+This repository focuses on the LED task
 <p align="center">
   <img width="627" height="242" src="./src/led_task_figure.jpg" alt="LED task figure">
 </p>
