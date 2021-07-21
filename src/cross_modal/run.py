@@ -180,7 +180,6 @@ class LEDAgent:
             self.evaluate(self.val_unseen_iterator, mode="valUnseen")
             evaluate(self.args, "valUnseen_data.json", self.args.run_name)
             self.evaluate(self.test_iterator, mode="test")
-            # evaluate(self.args, "test_data_full.json", self.args.run_name)
 
 
 if __name__ == "__main__":
