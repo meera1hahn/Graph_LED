@@ -7,9 +7,6 @@ parser = argparse.ArgumentParser(description="LED task")
 # What are you doing
 parser.add_argument("--train", default=False, action="store_true")
 parser.add_argument("--evaluate", default=False, action="store_true")
-parser.add_argument("--generate_predictions", default=False, action="store_true")
-parser.add_argument("--eval_predictions", default=False, action="store_true")
-parser.add_argument("--visualize", default=False, action="store_true")
 
 # Data/Input Paths
 parser.add_argument("--data_dir", type=str, default="../../data/way_splits/")
@@ -61,7 +58,7 @@ parser.add_argument("--num_lingunet_layers", type=int, default=3)
 # Params
 parser.add_argument("--print_every", type=int, default=100)
 parser.add_argument("--summary", default=True, action="store_true", help="tensorboard")
-parser.add_argument("--name", type=str, default="no_name", help="name of the run")
+parser.add_argument("--run_name", type=str, default="no_name", help="name of the run")
 parser.add_argument("--cuda", type=str, default=0, help="which GPU to use")
 parser.add_argument("--lr", type=float, default=0.0001, help="initial learning rate")
 parser.add_argument("--grad_clip", type=float, default=0.5, help="gradient clipping")
@@ -70,8 +67,8 @@ parser.add_argument("--seed", type=int, default=42, help="random seed")
 parser.add_argument("--batch_size", type=int, default=8)
 parser.add_argument("--early_stopping", type=int, default=10)
 
-
-def collect_graphs(args):  # get scene graphs
+# Get scene graphs
+def collect_graphs(args):
     scan_graphs = {}
     scans = [s.strip() for s in open(args.connect_dir + "scans.txt").readlines()]
     for scan_id in scans:
@@ -81,6 +78,5 @@ def collect_graphs(args):  # get scene graphs
 
 def parse_args():
     args = parser.parse_args()
-    args.run_name = args.name
     args.scan_graphs = collect_graphs(args)
     return args

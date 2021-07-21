@@ -7,32 +7,29 @@ from src.lingunet.led_dataset import LEDDataset
 
 
 class Loader:
-    def __init__(self, args, data_dir, image_dir):
+    def __init__(self, args):
         self.mesh2meters = json.load(open(args.image_dir + "pix2meshDistance.json"))
-        self.data_dir = data_dir
-        self.image_dir = image_dir
         self.vocab = Vocabulary()
         self.max_length = 0
         self.max_dialog_length = 0
         self.datasets = {}
         self.args = args
 
-    def load_image_paths(self, data):
-        image_paths = []
-        scan_names = []
-        levels = []
-        annotation_ids = []
+    def load_image_paths(self, data, mode):
+        episode_ids, scan_names, levels, mesh_conversions, dialogs = [], [], [], [], []
         for data_obj in data:
-            scan_name = data_obj["scanName"]
-            scan_names.append(scan_name)
-            annotation_ids.append(data_obj["episodeId"])
-            level = str(data_obj["finalLocation"]["floor"])
+            episode_ids.append(data_obj["episodeId"])
+            scan_names.append(data_obj["scanName"])
+            dialogs.append(self.add_tokens(data_obj["dialogArray"]))
+            level = 0
+            if mode != "test":
+                level = str(data_obj["finalLocation"]["floor"])
             levels.append(level)
-
-            image_paths.append(
-                "{}floor_{}/{}_{}.png".format(self.image_dir, level, scan_name, level)
+            mesh_conversions.append(
+                self.mesh2meters[data_obj["scanName"]][str(level)]["threeMeterRadius"]
+                / 3.0
             )
-        return image_paths, scan_names, levels, annotation_ids
+        return episode_ids, scan_names, levels, mesh_conversions, dialogs
 
     def add_tokens(self, message_arr):
         new_dialog = ""
@@ -42,12 +39,6 @@ class Loader:
             else:
                 new_dialog += "SOOM " + message + " EOOM "
         return new_dialog
-
-    def load_dialogs(self, data):
-        dialogs = []
-        for data_obj in data:
-            dialogs.append(self.add_tokens(data_obj["dialogArray"]))
-        return dialogs
 
     def load_locations(self, data, mode):
         if "test" in mode:
@@ -64,17 +55,6 @@ class Loader:
         y = [data_obj["finalLocation"]["viewPoint"] for data_obj in data]
 
         return x, y
-
-    def load_mesh_conversion(self, data):
-        mesh_conversions = []
-        for data_obj in data:
-            mesh_conversions.append(
-                self.mesh2meters[data_obj["scanName"]][
-                    str(data_obj["finalLocation"]["floor"])
-                ]["threeMeterRadius"]
-                / 3.0
-            )
-        return mesh_conversions
 
     def build_pretrained_vocab(self, texts):
         self.vocab.word2idx = json.load(open(self.args.embedding_dir + "word2idx.json"))
@@ -96,12 +76,16 @@ class Loader:
     def build_dataset(self, file):
         mode = file.split("_")[0]
         print("[{}]: Loading JSON file...".format(mode))
-        data = json.load(open(self.data_dir + file))
+        data = json.load(open(self.args.data_dir + file))
         print("[{}]: Using {} samples".format(mode, len(data)))
         locations, viewPoint_location = self.load_locations(data, mode)
-        mesh_conversions = self.load_mesh_conversion(data)
-        image_paths, scan_names, levels, annotation_ids = self.load_image_paths(data)
-        dialogs = self.load_dialogs(data)
+        (
+            episode_ids,
+            scan_names,
+            levels,
+            mesh_conversions,
+            dialogs,
+        ) = self.load_image_paths(data, mode)
         texts = copy.deepcopy(dialogs)
         texts, seq_lengths = self.build_pretrained_vocab(texts)
 
@@ -109,7 +93,6 @@ class Loader:
         dataset = LEDDataset(
             mode,
             self.args,
-            image_paths,
             texts,
             seq_lengths,
             mesh_conversions,
@@ -118,7 +101,7 @@ class Loader:
             dialogs,
             scan_names,
             levels,
-            annotation_ids,
+            episode_ids,
         )
         self.datasets[mode] = dataset
         print("[{}]: Finish building dataset...".format(mode))

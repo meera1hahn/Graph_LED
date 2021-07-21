@@ -37,7 +37,7 @@ class RNN(nn.Module):
             dropout=dropout,
             num_layers=num_layers,
         )
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout(p=0.0)
 
     def forward(self, x, seq_lengths):
         embed = self.embedding(x)

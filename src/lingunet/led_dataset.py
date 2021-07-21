@@ -13,7 +13,6 @@ class LEDDataset(Dataset):
         self,
         mode,
         args,
-        image_paths,
         texts,
         seq_lengths,
         mesh_conversions,
@@ -26,7 +25,6 @@ class LEDDataset(Dataset):
     ):
         self.mode = mode
         self.args = args
-        self.image_paths = image_paths
         self.texts = texts
         self.seq_lengths = seq_lengths
         self.mesh_conversions = mesh_conversions
@@ -131,4 +129,4 @@ class LEDDataset(Dataset):
         )
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.annotation_ids)

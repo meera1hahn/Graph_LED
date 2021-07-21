@@ -35,7 +35,7 @@ class LingUNetAgent:
             if not os.path.isdir(self.checkpoint_dir):
                 print("Checkpoint directory under {}".format(self.checkpoint_dir))
                 os.system("mkdir {}".format(self.checkpoint_dir))
-            self.writer = SummaryWriter(args.summary_dir + args.name)
+            self.writer = SummaryWriter(args.summary_dir + args.run_name)
 
         self.model = None
         self.optimizer = None
@@ -58,8 +58,6 @@ class LingUNetAgent:
         self.scores("valUnseen", loss, acc0m, acc5m, 0)
         evaluate(self.args, "valUnseen_data.json", self.args.run_name)
         loss, acc0m, acc5m = self.eval_model(self.test_iterator, "test")
-        self.scores("test", loss, acc0m, acc5m, 0)
-        evaluate(self.args, "test_data.json", self.args.run_name)
 
     def run_epoch(
         self,
@@ -219,11 +217,7 @@ class LingUNetAgent:
         print(f"Best model saved at: {save_path}")
 
     def load_data(self):
-        self.loader = Loader(
-            args,
-            data_dir=self.args.data_dir,
-            image_dir=self.args.image_dir,
-        )
+        self.loader = Loader(args)
         self.loader.build_dataset(file="train_expanded_data.json")
         self.loader.build_dataset(file="valSeen_data.json")
         self.loader.build_dataset(file="valUnseen_data.json")
