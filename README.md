@@ -2,7 +2,7 @@
 
 This is the offical repository for the panoramic graph based version of the LED task described in [Where Are You? Localizaiton from Embodied Dialog]
 https://arxiv.org/abs/2011.08277
-[[project website](https://meerahahn.github.io/way/data)]
+[[project website](https://meerahahn.github.io/way)]
 
 This repository contains the implemenation of 4 models for the Localization from Embodied Dialog (LED) task on the Matterport3D Navigation Graph. 
 1. LingUNet model with residual connections. (from the original paper -- https://arxiv.org/abs/2011.08277)
