@@ -17,6 +17,13 @@ WAY_LINKS = [
     )
 ]
 
+GEO_LINKS = [
+    (
+        "data/geodistance_nodes.json",
+        "https://drive.google.com/uc?id=18RcaK3rHDKPeouEvuxMUQ4a20yW-rF2U",
+    )
+]
+
 WORD_EMBEDDING_LINKS = [
     (
         "data/word_embeddings.zip",
@@ -233,6 +240,8 @@ if __name__ == "__main__":
     if download_all or args.way_splits:
         for path, url in WAY_LINKS:
             _download_drive_url_to_file(url, path, _iszipfile=True)
+        for path, url in GEO_LINKS:
+            _download_drive_url_to_file(url, path)
 
     if download_all or args.word_embeddings:
         for path, url in WORD_EMBEDDING_LINKS:
@@ -246,6 +255,7 @@ if __name__ == "__main__":
         for path, url in MODEL_LINKS:
             _download_drive_url_to_file(url, path)
 
+    
     if download_all or args.connectivity:
         for fname in CONNECTIVITY_FILES:
             path = f"data/connectivity/{fname}"
