@@ -30,7 +30,7 @@
 2. Download the Resent 152 places features for all the panos (https://github.com/peteanderson80/Matterport3DSimulator):
    ```
    cd data
-   wget https://www.dropbox.com/s/85tpa6tc3enl5ud/ResNet-152-places365.zip?dl=1
+   wget https://www.dropbox.com/s/85tpa6tc3enl5ud/ResNet-152-places365.zip
    ```
 3. Extract the panos features needed.
    ```
