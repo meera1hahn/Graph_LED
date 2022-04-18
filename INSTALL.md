@@ -31,6 +31,8 @@
    ```
    cd data
    wget https://www.dropbox.com/s/85tpa6tc3enl5ud/ResNet-152-places365.zip
+   unzip ResNet-152-places365.zip
+   rm ResNet-152-places365.zip
    ```
 3. Extract the panos features needed.
    ```
